@@ -1,60 +1,146 @@
 // Vendor level deterministic checks, run after any document of the vendor changes:
 // conflicts, stated total, freight, certificates, knockouts, coverage. Idempotent.
 import type pg from 'pg';
-import { evaluateKnockouts, type AnswerForRule, type KnockoutQuestion } from '../../../engine/questionnaire.js';
+import { evaluateVendor, type KnockoutQuestion, type StoredAnswer } from '../../../engine/questionnaire.js';
 import { detectConflicts, namesMatch, reconcileTotal } from '../../../engine/verify.js';
 import type { CertificateFacts } from '../../../src/lib/schemas/extraction.js';
 
+/** Checks that depend on prices. They are the only ones an FX, GST or value change can alter. */
+export const PRICE_KINDS = ['conflict', 'total_mismatch'];
 export const RECONCILE_KINDS = [
-  'conflict', 'total_mismatch', 'freight_amount_unknown', 'freight_terms_unknown', 'certificate_expired',
+  'freight_amount_unknown', 'freight_terms_unknown', 'certificate_expired',
   'attachment_name_mismatch', 'knockout_failed', 'knockout_pending', 'not_quoted',
 ];
 
 const fmt = (n: number) => n.toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
 
+type Queryable = { query: pg.Pool['query'] };
+
+/** Knockout outcomes for one vendor from the stored answers and any certificate expiry. No model involved. */
+export async function evaluateVendorQuestionnaire(c: Queryable, vendorId: string, rfxId: string) {
+  const submitted = ((await c.query(`select to_char(min(received_at), 'YYYY-MM-DD') d from vendor_messages where vendor_id = $1`, [vendorId])) as { rows: { d: string | null }[] }).rows[0]?.d ?? null;
+  const docs = ((await c.query(`select facts from documents where vendor_id = $1 and facts is not null`, [vendorId])) as { rows: { facts: CertificateFacts }[] }).rows;
+  const qs = ((await c.query('select id, code, is_knockout, pass_rule from questionnaire_questions where rfx_id = $1', [rfxId])) as { rows: (KnockoutQuestion & { id: string })[] }).rows;
+  const ans = (
+    (await c.query(
+      'select q.code, a.status, a.answer_value, a.basis from questionnaire_answers a join questionnaire_questions q on q.id = a.question_id where a.vendor_id = $1',
+      [vendorId],
+    )) as { rows: StoredAnswer[] }
+  ).rows;
+  return { ...evaluateVendor(qs, ans, submitted, docs.map((d) => d.facts)), submitted };
+}
+
+type PriceLine = { id: string; vendor_id: string; rfx_line_id: string; code: string; normalized: number | null; source_document_id: string; annual_qty: number };
+
+/**
+ * Conflicts and stated total checks for a set of vendors, in a handful of queries.
+ * Run inside the caller's transaction. Dismissed items stay dismissed while the
+ * same finding is regenerated.
+ */
+export async function reconcilePrices(c: pg.PoolClient, vendorIds: string[]): Promise<void> {
+  if (vendorIds.length === 0) return;
+  const lines = (
+    await c.query<PriceLine>(
+      `select q.id, q.vendor_id, q.rfx_line_id, l.code, q.normalized_price_inr::float8 as normalized, q.source_document_id, l.annual_qty::float8 as annual_qty
+       from quote_lines q join rfx_lines l on l.id = q.rfx_line_id where q.vendor_id = any($1) and q.status <> 'rejected'`,
+      [vendorIds],
+    )
+  ).rows;
+  const terms = new Map(
+    (
+      await c.query<{ vendor_id: string; stated_total_inr: string | null; stated_total_evidence: { document_id?: string } | null }>(
+        'select vendor_id, stated_total_inr, stated_total_evidence from vendor_terms where vendor_id = any($1)',
+        [vendorIds],
+      )
+    ).rows.map((t) => [t.vendor_id, t]),
+  );
+  const carried = new Map(
+    (
+      await c.query<{ fingerprint: string; state: string; resolution: unknown }>(
+        `select fingerprint, state, resolution from review_items where vendor_id = any($1) and kind = any($2) and state <> 'open' and fingerprint is not null`,
+        [vendorIds, PRICE_KINDS],
+      )
+    ).rows.map((r) => [r.fingerprint, r]),
+  );
+  type Item = { vendor_id: string; kind: string; message: string; document_id: string | null; quote_line_id: string | null; value: number | null };
+  const items: Item[] = [];
+  const conflicted: string[] = [];
+
+  for (const vendorId of vendorIds) {
+    const mine = lines.filter((l) => l.vendor_id === vendorId);
+    const byLine = new Map<string, PriceLine[]>();
+    for (const q of mine) byLine.set(q.rfx_line_id, [...(byLine.get(q.rfx_line_id) ?? []), q]);
+    for (const group of byLine.values()) {
+      const ids = detectConflicts(group.map((g) => ({ id: g.id, normalized_inr: g.normalized })));
+      if (ids.length) {
+        conflicted.push(...ids);
+        const vals = group.filter((g) => ids.includes(g.id)).map((g) => fmt(g.normalized ?? 0)).join(' vs ');
+        items.push({ vendor_id: vendorId, kind: 'conflict', message: `${group[0]?.code}: sources disagree (${vals} per unit).`, document_id: null, quote_line_id: ids[0] ?? null, value: null });
+      }
+    }
+    const t = terms.get(vendorId);
+    const docId = t?.stated_total_evidence?.document_id;
+    if (t?.stated_total_inr && docId) {
+      const own = mine.filter((q) => q.source_document_id === docId && q.normalized != null).map((q) => ({ normalized_inr: q.normalized as number, annual_qty: q.annual_qty }));
+      if (own.length) {
+        const r = reconcileTotal(own, Number(t.stated_total_inr));
+        if (r.mismatch) {
+          items.push({
+            vendor_id: vendorId, kind: 'total_mismatch', document_id: docId, quote_line_id: null, value: Math.abs(r.stated_inr - r.computed_inr),
+            message: `Stated grand total Rs ${fmt(r.stated_inr)} differs from the sum of its ${own.length} lines times annual quantity, Rs ${fmt(r.computed_inr)} (${r.delta_pct.toFixed(2)} percent). Neither figure is trusted until resolved.`,
+          });
+        }
+      }
+    }
+  }
+
+  await c.query(`update quote_lines set status = conversion->>'base_status' where vendor_id = any($1) and status = 'conflict' and conversion ? 'base_status'`, [vendorIds]);
+  await c.query('delete from review_items where vendor_id = any($1) and kind = any($2)', [vendorIds, PRICE_KINDS]);
+  if (conflicted.length) await c.query(`update quote_lines set status = 'conflict' where id = any($1)`, [conflicted]);
+  if (items.length) {
+    const rows = items.map((i) => {
+      const fp = [i.kind, i.document_id ?? '', i.quote_line_id ?? '', i.message.slice(0, 48)].join('|');
+      const prior = carried.get(fp);
+      return { vendor_id: i.vendor_id, kind: i.kind, message: i.message, document_id: i.document_id, quote_line_id: i.quote_line_id, value: i.value, fp, state: prior?.state ?? 'open', resolution: prior ? prior.resolution : null };
+    });
+    await c.query(
+      `insert into review_items (vendor_id, document_id, quote_line_id, kind, severity, message, value_at_stake_inr, fingerprint, state, resolution)
+       select d.vendor_id, d.document_id, d.quote_line_id, d.kind, 'warn', d.message, d.value, d.fp, d.state, d.resolution
+       from jsonb_to_recordset($1::jsonb) as d(vendor_id uuid, kind text, message text, document_id uuid, quote_line_id uuid, value numeric, fp text, state text, resolution jsonb)`,
+      [JSON.stringify(rows)],
+    );
+  }
+}
+
 export async function reconcileVendor(pool: pg.Pool, vendorId: string): Promise<void> {
   const c = await pool.connect();
   try {
     await c.query('begin');
+    // A dismissed or resolved item stays that way while the same finding is regenerated.
+    const carried = new Map(
+      (await c.query<{ fingerprint: string; state: string; resolution: unknown }>(
+        `select fingerprint, state, resolution from review_items where vendor_id = $1 and kind = any($2) and state <> 'open' and fingerprint is not null`,
+        [vendorId, RECONCILE_KINDS],
+      )).rows.map((r) => [r.fingerprint, r]),
+    );
     await c.query('delete from review_items where vendor_id = $1 and kind = any($2)', [vendorId, RECONCILE_KINDS]);
-    await c.query(`update quote_lines set status = conversion->>'base_status' where vendor_id = $1 and status = 'conflict' and conversion ? 'base_status'`, [vendorId]);
-    const add = (kind: string, severity: string, message: string, extra: { document_id?: string | null; quote_line_id?: string | null; value?: number | null } = {}) =>
-      c.query('insert into review_items (vendor_id, document_id, quote_line_id, kind, severity, message, value_at_stake_inr) values ($1,$2,$3,$4,$5,$6,$7)', [
-        vendorId, extra.document_id ?? null, extra.quote_line_id ?? null, kind, severity, message, extra.value ?? null,
-      ]);
+    const add = (kind: string, severity: string, message: string, extra: { document_id?: string | null; quote_line_id?: string | null; value?: number | null } = {}) => {
+      const fp = [kind, extra.document_id ?? '', extra.quote_line_id ?? '', message.slice(0, 48)].join('|');
+      const prior = carried.get(fp);
+      return c.query(
+        'insert into review_items (vendor_id, document_id, quote_line_id, kind, severity, message, value_at_stake_inr, fingerprint, state, resolution) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
+        [vendorId, extra.document_id ?? null, extra.quote_line_id ?? null, kind, severity, message, extra.value ?? null, fp, prior?.state ?? 'open', prior ? JSON.stringify(prior.resolution) : null],
+      );
+    };
 
     const vendor = (await c.query<{ name: string; rfx_id: string }>('select name, rfx_id from vendors where id = $1', [vendorId])).rows[0];
     if (!vendor) throw new Error('Vendor not found.');
     const submitted = (await c.query<{ d: string | null }>(`select to_char(min(received_at), 'YYYY-MM-DD') d from vendor_messages where vendor_id = $1`, [vendorId])).rows[0]?.d ?? null;
 
-    // Conflicts: two or more values for the same RFx line.
-    const ql = (await c.query<{ id: string; rfx_line_id: string; code: string; normalized_price_inr: string | null; source_document_id: string; annual_qty: string }>(
-      `select q.id, q.rfx_line_id, l.code, q.normalized_price_inr, q.source_document_id, l.annual_qty
-       from quote_lines q join rfx_lines l on l.id = q.rfx_line_id where q.vendor_id = $1 and q.status <> 'rejected'`, [vendorId])).rows;
-    const byLine = new Map<string, typeof ql>();
-    for (const q of ql) byLine.set(q.rfx_line_id, [...(byLine.get(q.rfx_line_id) ?? []), q]);
-    for (const [, group] of byLine) {
-      const ids = detectConflicts(group.map((g) => ({ id: g.id, normalized_inr: g.normalized_price_inr == null ? null : Number(g.normalized_price_inr) })));
-      if (ids.length) {
-        await c.query(`update quote_lines set status = 'conflict' where id = any($1)`, [ids]);
-        const vals = group.filter((g) => ids.includes(g.id)).map((g) => fmt(Number(g.normalized_price_inr))).join(' vs ');
-        await add('conflict', 'warn', `${group[0]?.code}: sources disagree (${vals} per unit).`, { quote_line_id: ids[0] });
-      }
-    }
-
-    // Stated total vs sum of that document's lines.
-    const terms = (await c.query<{ stated_total_inr: string | null; stated_total_evidence: { document_id?: string } | null; freight_terms: string; freight_amount_inr: string | null; letterhead_name: string | null }>(
-      'select stated_total_inr, stated_total_evidence, freight_terms, freight_amount_inr, letterhead_name from vendor_terms where vendor_id = $1', [vendorId])).rows[0];
-    if (terms?.stated_total_inr && terms.stated_total_evidence?.document_id) {
-      const docId = terms.stated_total_evidence.document_id;
-      const lines = ql.filter((q) => q.source_document_id === docId && q.normalized_price_inr != null).map((q) => ({ normalized_inr: Number(q.normalized_price_inr), annual_qty: Number(q.annual_qty) }));
-      if (lines.length) {
-        const t = reconcileTotal(lines, Number(terms.stated_total_inr));
-        if (t.mismatch) {
-          await add('total_mismatch', 'warn', `Stated grand total Rs ${fmt(t.stated_inr)} differs from the sum of its ${lines.length} lines times annual quantity, Rs ${fmt(t.computed_inr)} (${t.delta_pct.toFixed(2)} percent). Neither figure is trusted until resolved.`, { document_id: docId, value: Math.abs(t.stated_inr - t.computed_inr) });
-        }
-      }
-    }
+    await reconcilePrices(c, [vendorId]);
+    const terms = (await c.query<{ freight_terms: string; freight_amount_inr: string | null; letterhead_name: string | null }>(
+      'select freight_terms, freight_amount_inr, letterhead_name from vendor_terms where vendor_id = $1', [vendorId])).rows[0];
+    const ql = (await c.query<{ id: string }>(`select id from quote_lines where vendor_id = $1 and status <> 'rejected'`, [vendorId])).rows;
 
     // Freight
     if (terms?.freight_terms === 'extra' && terms.freight_amount_inr == null) {
@@ -67,12 +153,10 @@ export async function reconcileVendor(pool: pg.Pool, vendorId: string): Promise<
     // Certificates and other attachments
     const docs = (await c.query<{ id: string; filename: string; facts: CertificateFacts | null }>(`select id, filename, facts from documents where vendor_id = $1 and facts is not null`, [vendorId])).rows;
     const letterhead = terms?.letterhead_name ?? null;
-    let isoExpiry = null as string | null;
     for (const d of docs) {
       const f = d.facts;
       if (!f) continue;
       const flags: string[] = [];
-      if (f.doc_type === 'iso_9001' && f.expiry_date) isoExpiry = isoExpiry && isoExpiry > f.expiry_date ? isoExpiry : f.expiry_date;
       if (f.expiry_date && submitted && f.expiry_date < submitted) {
         flags.push('expired');
         await add('certificate_expired', 'warn', `${d.filename}: ${f.standard ?? f.doc_type} certificate ${f.certificate_number ?? ''} expired on ${f.expiry_date}, before the reply date ${submitted}.`, { document_id: d.id });
@@ -89,19 +173,10 @@ export async function reconcileVendor(pool: pg.Pool, vendorId: string): Promise<
     }
 
     // Knockouts
-    const qs = (await c.query<KnockoutQuestion & { id: string }>('select id, code, is_knockout, pass_rule from questionnaire_questions where rfx_id = $1', [vendor.rfx_id])).rows;
-    const ans = (await c.query<{ code: string; status: AnswerForRule['status']; answer_value: unknown; basis: 'explicit' | 'inferred' }>(
-      'select q.code, a.status, a.answer_value, a.basis from questionnaire_answers a join questionnaire_questions q on q.id = a.question_id where a.vendor_id = $1', [vendorId])).rows;
-    const answers: Record<string, AnswerForRule> = Object.fromEntries(ans.map((a) => [a.code, { status: a.status, value: a.answer_value, basis: a.basis }]));
-    let result: string | null = null;
-    if (submitted && (ans.length > 0 || docs.length > 0)) {
-      const r = evaluateKnockouts(qs, answers, submitted, isoExpiry);
-      result = r.result;
-      const fails = Object.entries(r.knockouts).filter(([, k]) => k.outcome === 'fail');
-      const pend = Object.entries(r.knockouts).filter(([, k]) => k.outcome === 'pending');
-      for (const [code, k] of fails) await add('knockout_failed', 'warn', `Knockout ${code} failed: ${k.reason}`);
-      for (const [code, k] of pend) await add('knockout_pending', 'warn', `Knockout ${code} cannot be decided: ${k.reason}`);
-    }
+    const q = await evaluateVendorQuestionnaire(c, vendorId, vendor.rfx_id);
+    const result = q.result;
+    for (const [code, k] of Object.entries(q.knockouts).filter(([, k]) => k.outcome === 'fail')) await add('knockout_failed', 'warn', `Knockout ${code} failed: ${k.reason}`);
+    for (const [code, k] of Object.entries(q.knockouts).filter(([, k]) => k.outcome === 'pending')) await add('knockout_pending', 'warn', `Knockout ${code} cannot be decided: ${k.reason}`);
     await c.query(
       `update vendor_terms set flags = array(select unnest(flags) except select unnest(array['questionnaire_cleared','questionnaire_failed','questionnaire_pending'])) || $2::text[] where vendor_id = $1`,
       [vendorId, result ? [`questionnaire_${result.toLowerCase()}`] : []],

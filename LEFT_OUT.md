@@ -22,3 +22,14 @@ Real email sending and receiving, authentication and multi tenancy, vendor porta
 - **Image crop rendering.** The model returns a normalized region for photo evidence; drawing the crop is the evidence drawer (phase 4).
 - **Opus for the photo.** Not needed: Sonnet read all 30 rate card prices exactly.
 - **Held out vendor variant.** Still deferred; the eval is therefore not a held out test (stated in the report).
+
+## Cut or deferred in phases 3 and 4 (2026-10-07)
+- **Dark mode, animations, mobile layout.** Cut as allowed. Only a short flash on cells a recompute changed, which respects reduced motion.
+- **Accurate regions on the tilted photo.** The model's regions are approximate (D37). A real fix needs a new read or image processing.
+- **Re-run extraction and retry buttons in the inbox.** Inbox and source view are read only; they arrive with the inbox simulation.
+- **Vendor level and line level assumption scopes.** Only the global FX and GST are editable; the `assumptions` table supports more.
+- **Undo for FX edits and an audit log of assumption changes.** FX can be reset to the default; only line corrections are logged.
+- **Corrections survive re-extraction.** Re-running a document replaces its lines and drops their overrides and corrections. Fine for now; to revisit with the inbox.
+- **Eval page in the app.** `eval/EVAL_REPORT.md` exists; the page is not built.
+- **Needs review cells in the stored data.** The stored run produced none, so that part of the queue shows empty. It is exercised by unit tests, not by the live data.
+- **API route consolidation** for the Vercel function limit (D39).

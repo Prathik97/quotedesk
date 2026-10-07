@@ -46,3 +46,22 @@ body {
     transition: none !important;
   }
 }
+
+@theme {
+  --color-accent-soft: #ccfbf1;
+  --color-accent-line: #5eead4;
+  --color-ink-2: #334155;
+}
+
+/* Brief confirmation that a recompute changed a cell. Respects reduced motion via the rule above. */
+@keyframes qd-flash {
+  from {
+    background-color: #fef08a;
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.qd-flash {
+  animation: qd-flash 1.4s ease-out;
+}

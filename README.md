@@ -2,7 +2,7 @@
 
 Turns five messy vendor replies (Excel, PDF, Word, a phone photo, an email) into one normalized, evidence backed comparison, then lets a buyer interrogate it in plain language all the way to an award. The model reads documents; deterministic code does every calculation.
 
-Status: phase 2 of 8 (extraction pipeline and evaluation). See `REQUIREMENTS.md`, `DECISIONS.md`, `LEFT_OUT.md`.
+Status: phases 1 to 4 of 8 (dataset, extraction and evaluation, normalization engine, comparison workspace with evidence and review). See `REQUIREMENTS.md`, `DECISIONS.md`, `LEFT_OUT.md`.
 
 ## Setup
 Node 22, Python 3.
@@ -29,3 +29,10 @@ npm run eval -- --fresh                # full eval with real calls; writes eval/
 npm run eval -- --score-only           # score what is stored, no calls
 ```
 Every model call passes a hard session budget guard (Rs 300) and the dev cache. Cache hits are labelled and cost nothing. See `eval/EVAL_REPORT.md` for the latest results and known limitations.
+
+## Comparison workspace (phases 3 and 4)
+```bash
+npm run dev          # grid, evidence drawer, review queue at http://localhost:5173
+npm run recompute    # deterministic recompute of every stored line, no model calls (prints 0 changed when stored results match the engine)
+```
+Everything in the app reads stored results from the database. Screenshots are in `docs/screenshots`.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateKnockouts, type KnockoutQuestion } from './questionnaire';
+import { describeRule, evaluateKnockouts, type KnockoutQuestion } from './questionnaire';
 
 const Q: KnockoutQuestion[] = [
   { code: 'Q1', is_knockout: true, pass_rule: { op: 'valid_on_date', field: 'expiry', date: 'submission' } },
@@ -41,5 +41,16 @@ describe('evaluateKnockouts', () => {
   it('an explicit failure still fails even when another knockout is inferred', () => {
     const r = evaluateKnockouts(Q, { Q1: ans({ has: true, expiry: '2028-01-01' }), Q2: { status: 'answered', value: true, basis: 'inferred' }, Q3: ans(3.4) }, '2026-04-15');
     expect(r.result).toBe('Failed');
+  });
+});
+
+describe('describeRule', () => {
+  it('words each rule', () => {
+    expect(describeRule({ op: 'eq', value: true })).toBe('Must be yes');
+    expect(describeRule({ op: 'eq', value: false })).toBe('Must be no');
+    expect(describeRule({ op: 'lte', value: 2 })).toBe('At most 2');
+    expect(describeRule({ op: 'gte', value: 5 })).toBe('At least 5');
+    expect(describeRule({ op: 'valid_on_date', field: 'expiry', date: 'submission' })).toBe('Certificate valid on the reply date');
+    expect(describeRule(null)).toBeNull();
   });
 });

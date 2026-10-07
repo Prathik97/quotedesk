@@ -57,6 +57,8 @@ export type StatusInput = {
   unit_known: boolean;
   assumption_keys: string[];
   has_price: boolean;
+  /** The buyer checked this value against the source (accept, edit, or unit meaning). */
+  buyer_verified?: boolean;
 };
 
 export type StatusDecision = { status: LineStatus; reasons: string[] };
@@ -69,6 +71,12 @@ export function assignStatus(s: StatusInput): StatusDecision {
   const review: string[] = [];
   if (!s.has_price) review.push('No readable price.');
   if (!s.unit_known) review.push('Unit could not be mapped to the RFx unit.');
+  if (s.buyer_verified) {
+    // A person looked at the source: read, match and evidence doubts are settled.
+    if (review.length > 0) return { status: 'needs_review', reasons: review };
+    if (s.assumption_keys.length > 0) return { status: 'assumed', reasons: [`Verified by the buyer. Still depends on: ${s.assumption_keys.join(', ')}.`] };
+    return { status: 'confirmed', reasons: ['Verified by the buyer against the source. No assumptions apply.'] };
+  }
   if (s.read_confidence === 'low') review.push('Low read confidence.');
   if (s.read_confidence === 'medium' && s.source_type !== 'image') review.push('Medium read confidence on a text source.');
   if (s.match_confidence < MATCH_CONFIRM_THRESHOLD) review.push(`Match confidence ${s.match_confidence.toFixed(2)} is below ${MATCH_CONFIRM_THRESHOLD}.`);

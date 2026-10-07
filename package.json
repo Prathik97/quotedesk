@@ -18,7 +18,8 @@
     "extract:all": "tsx scripts/extract-all.ts",
     "eval": "tsx eval/run.ts",
     "api:ping": "tsx scripts/ping.ts",
-    "debug:cache": "tsx scripts/debug-cache.ts"
+    "debug:cache": "tsx scripts/debug-cache.ts",
+    "recompute": "tsx scripts/recompute.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

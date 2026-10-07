@@ -115,3 +115,43 @@ export function evaluateKnockouts(
   const result = outcomes.includes('fail') ? 'Failed' : outcomes.includes('pending') ? 'Pending' : 'Cleared';
   return { result, knockouts };
 }
+
+/** The pass rule in words, for the questionnaire matrix. */
+export function describeRule(rule: PassRule | null): string | null {
+  if (!rule) return null;
+  switch (rule.op) {
+    case 'eq':
+      return typeof rule.value === 'boolean' ? (rule.value ? 'Must be yes' : 'Must be no') : `Must be ${String(rule.value)}`;
+    case 'lte':
+      return `At most ${rule.value}`;
+    case 'gte':
+      return `At least ${rule.value}`;
+    case 'valid_on_date':
+      return 'Certificate valid on the reply date';
+  }
+}
+
+export type StoredAnswer = { code: string; status: AnswerForRule['status']; answer_value: unknown; basis: 'explicit' | 'inferred' };
+
+/** Latest ISO 9001 expiry among a vendor's certificates. Used when an answer only says "copy attached". */
+export function latestIsoExpiry(facts: { doc_type?: string | null; expiry_date?: string | null }[]): string | null {
+  let out = null as string | null;
+  for (const f of facts) {
+    if (f.doc_type === 'iso_9001' && f.expiry_date) out = out && out > f.expiry_date ? out : f.expiry_date;
+  }
+  return out;
+}
+
+/** The questionnaire verdict for one vendor from stored data. Null result when there is nothing to judge yet. */
+export function evaluateVendor(
+  questions: KnockoutQuestion[],
+  answers: StoredAnswer[],
+  submitted: string | null,
+  certFacts: { doc_type?: string | null; expiry_date?: string | null }[],
+): Omit<QuestionnaireResult, 'result'> & { result: QuestionnaireResult['result'] | null; isoExpiry: string | null } {
+  const isoExpiry = latestIsoExpiry(certFacts);
+  if (!submitted || (answers.length === 0 && certFacts.length === 0)) return { result: null, knockouts: {}, isoExpiry };
+  const map: Record<string, AnswerForRule> = Object.fromEntries(answers.map((a) => [a.code, { status: a.status, value: a.answer_value, basis: a.basis }]));
+  const r = evaluateKnockouts(questions, map, submitted, isoExpiry);
+  return { ...r, isoExpiry };
+}

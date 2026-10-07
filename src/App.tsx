@@ -1,23 +1,26 @@
-import { BarChart3, FileText, FlaskConical, Inbox, MessageSquare, Scale, Send } from 'lucide-react';
+import { BarChart3, FileText, Inbox as InboxIcon, MessageSquare, Scale } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { EvidenceDrawer } from '@/components/EvidenceDrawer';
+import { TopStrip } from '@/components/TopStrip';
+import { AppProvider, useApp, type Page } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { ComingNext } from '@/pages/ComingNext';
+import { Comparison } from '@/pages/Comparison';
+import { Inbox } from '@/pages/Inbox';
+import { IssuedRfx } from '@/pages/IssuedRfx';
 
-const STAGES = [
-  { id: 'rfx', label: 'RFx', icon: FileText, phase: 6 },
-  { id: 'outbox', label: 'Outbox', icon: Send, phase: 6 },
-  { id: 'inbox', label: 'Inbox', icon: Inbox, phase: 6 },
-  { id: 'comparison', label: 'Comparison', icon: BarChart3, phase: 3 },
-  { id: 'analyst', label: 'Analyst', icon: MessageSquare, phase: 5 },
-  { id: 'decision', label: 'Decision', icon: Scale, phase: 7 },
-  { id: 'eval', label: 'Eval', icon: FlaskConical, phase: 2 },
-] as const;
-
-type StageId = (typeof STAGES)[number]['id'];
+const STAGES: { id: Page; label: string; icon: typeof FileText; soon?: boolean }[] = [
+  { id: 'rfx', label: 'Issued RFx (saved)', icon: FileText },
+  { id: 'inbox', label: 'Inbox', icon: InboxIcon },
+  { id: 'comparison', label: 'Comparison', icon: BarChart3 },
+  { id: 'analyst', label: 'Analyst', icon: MessageSquare, soon: true },
+  { id: 'decision', label: 'Decision', icon: Scale, soon: true },
+];
 
 type Health = { ok: boolean; config: string; database: string };
 
-export function App() {
-  const [stage, setStage] = useState<StageId>('comparison');
+function Shell() {
+  const { page, setPage, toast, selection } = useApp();
   const [health, setHealth] = useState<Health | null>(null);
 
   useEffect(() => {
@@ -27,49 +30,65 @@ export function App() {
       .catch(() => setHealth({ ok: false, config: 'unknown', database: 'unreachable' }));
   }, []);
 
-  const current = STAGES.find((s) => s.id === stage) ?? STAGES[0];
-
   return (
     <div className="flex h-full min-w-[1024px] flex-col">
-      <header className="flex h-12 items-center justify-between border-b border-border bg-card px-4">
+      <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-card px-4">
         <div className="flex items-center gap-2">
           <span className="font-semibold tracking-tight">QuoteDesk</span>
           <span className="text-sm text-muted-foreground">FY27 Corrugated Packaging and Consumables</span>
         </div>
-        <div className="text-sm text-muted-foreground">Certainty counts appear here once extraction runs.</div>
+        <span className="text-xs text-muted-foreground">Compare, check, decide</span>
       </header>
+      <div className="flex h-10 shrink-0 items-center border-b border-border bg-slate-50 px-4" aria-label="Certainty and readiness">
+        <div className="w-full"><TopStrip /></div>
+      </div>
       <div className="flex min-h-0 flex-1">
-        <nav aria-label="Journey stages" className="w-48 shrink-0 border-r border-border bg-card p-2">
+        <nav aria-label="Journey stages" className="w-44 shrink-0 border-r border-border bg-card p-2">
           <ul className="space-y-1">
             {STAGES.map((s) => (
               <li key={s.id}>
                 <button
                   type="button"
-                  onClick={() => setStage(s.id)}
-                  aria-current={stage === s.id ? 'page' : undefined}
-                  className={cn(
-                    'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm',
-                    stage === s.id ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-muted',
-                  )}
+                  onClick={() => setPage(s.id)}
+                  aria-current={page === s.id ? 'page' : undefined}
+                  className={cn('flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm', page === s.id ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-muted')}
                 >
-                  <s.icon className="size-4" aria-hidden />
-                  {s.label}
+                  <s.icon className="size-4 shrink-0" aria-hidden />
+                  <span className="min-w-0 leading-tight">
+                    {s.label}
+                    {s.soon ? <span className={cn('block text-[11px] font-normal', page === s.id ? 'text-teal-100' : 'text-muted-foreground')}>coming next</span> : null}
+                  </span>
                 </button>
               </li>
             ))}
           </ul>
         </nav>
-        <main className="min-w-0 flex-1 overflow-auto p-6">
-          <h1 className="text-lg font-semibold">{current.label}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">This stage is built in phase {current.phase}.</p>
+        <main className={cn('min-w-0 flex-1 overflow-auto p-5', selection && 'pr-[520px]')}>
+          {page === 'rfx' ? <IssuedRfx /> : null}
+          {page === 'inbox' ? <Inbox /> : null}
+          {page === 'comparison' ? <Comparison /> : null}
+          {page === 'analyst' ? <ComingNext title="Analyst" what="Ask the comparison questions in plain language and get answers backed by tools, with the cells they rely on and how many are assumed." /> : null}
+          {page === 'decision' ? <ComingNext title="Decision" what="Turn a scenario into an award decision pack that lists every assumption and every unresolved item." /> : null}
         </main>
       </div>
-      <footer className="flex h-8 items-center justify-between border-t border-border bg-card px-4 text-xs text-muted-foreground">
-        <span>
-          Server: {health ? (health.ok ? 'ready' : `config ${health.config}, database ${health.database}`) : 'checking'}
-        </span>
+      <footer className="flex h-8 shrink-0 items-center justify-between border-t border-border bg-card px-4 text-xs text-muted-foreground">
+        <span>Server: {health ? (health.ok ? 'ready' : `config ${health.config}, database ${health.database}`) : 'checking'}</span>
         <span>Usage meter arrives in phase 8.</span>
       </footer>
+      <EvidenceDrawer />
+      {toast ? (
+        <div role="status" aria-live="polite" className={cn('fixed bottom-12 left-1/2 z-50 max-w-xl -translate-x-1/2 rounded-md border px-4 py-2 text-sm shadow-lg', toast.kind === 'error' ? 'border-red-300 bg-red-50 text-status-conflict' : 'border-border bg-card')}>
+          {toast.text}
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <AppProvider>
+      <Shell />
+    </AppProvider>
   );
 }

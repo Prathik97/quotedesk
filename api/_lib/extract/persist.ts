@@ -1,9 +1,9 @@
 // Writes one document's extraction. Idempotent: everything previously derived
 // from this document is deleted first, inside one transaction.
 import type pg from 'pg';
-import { normalizePrice } from '../../../engine/convert.js';
 import type { Assumptions, BaseUom, UnitDefinition } from '../../../engine/types.js';
-import { assignStatus, coversExactlyRemainder, lineFlags, VERIFIED_SCOPE_CONFIDENCE } from '../../../engine/verify.js';
+import { READ_SCORE, recomputeLine, type LineResult } from '../../../engine/recompute.js';
+import { coversExactlyRemainder, VERIFIED_SCOPE_CONFIDENCE } from '../../../engine/verify.js';
 import { expandGroupStatements, type CertificateFacts, type Extraction } from '../../../src/lib/schemas/extraction.js';
 import type { Prepared } from './prepare.js';
 
@@ -11,7 +11,20 @@ export type RfxLineRow = { id: string; code: string; section: string; descriptio
 export type QuestionRow = { id: string; code: string; text: string; is_knockout: boolean; pass_rule: unknown };
 export type DocRow = { id: string; vendor_id: string; filename: string; sha256: string };
 
-const READ_SCORE = { high: 0.95, medium: 0.7, low: 0.4 } as const;
+/** The conversion column: steps with factors, the status rule's reasons, and what the rule saw. */
+export function conversionJson(r: LineResult, extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    ...(r.error ? { error: r.error.reason, detail: r.error.detail } : {}),
+    steps: r.steps,
+    notes: r.notes,
+    pack_size: r.pack_size,
+    pack_source: r.pack_source,
+    accepted_keys: r.accepted_keys,
+    reasons: r.reasons,
+    base_status: r.status,
+    ...extra,
+  };
+}
 
 async function review(
   c: pg.PoolClient,
@@ -56,7 +69,6 @@ export async function persistExtraction(
   const unitDefs: UnitDefinition[] = x.document.unit_definitions.map((u) => ({
     term: u.term, means_quantity: u.means_quantity, means_unit: u.means_unit, quote: u.evidence?.quote ?? null,
   }));
-  const taxKnown = x.document.tax_basis !== 'unknown';
   const statuses: Record<string, number> = {};
 
   // Code checks the scope of "everything else" style inheritance before trusting it.
@@ -73,53 +85,29 @@ export async function persistExtraction(
   const allLines = expandGroupStatements(x);
   for (const l of allLines) {
     const rfx = l.rfx_line_code ? byCode.get(l.rfx_line_code.trim()) ?? null : null;
-    const flags: string[] = [];
-    const assumption_keys: string[] = [];
-    let unit_known = true;
-    let normalized: number | null = null;
-    let conversion: Record<string, unknown> = {};
+    const sticky: string[] = [];
+    if (!rfx) sticky.push(l.rfx_line_code ? 'unknown_rfx_code' : 'unmatched');
+    if (prep.source_type === 'xlsx' && hidden.some((h) => l.evidence.locator.includes(`'${h}'`))) sticky.push('from_hidden_sheet');
 
-    if (!rfx) flags.push(l.rfx_line_code ? 'unknown_rfx_code' : 'unmatched');
-    if (rfx) {
-      const n = normalizePrice(
-        {
-          price: l.price, currency: l.currency, uom_text: l.uom_text, per_n: l.per_n ?? 1,
-          tax_basis: x.document.tax_basis, inherits_last_year: l.inherits_last_year,
-          base_uom: rfx.uom, last_year_rate_inr: rfx.last_year_rate_inr, unit_definitions: unitDefs,
-        },
-        a,
-      );
-      if (n.ok) {
-        normalized = n.value_inr;
-        assumption_keys.push(...n.assumption_keys);
-        conversion = { steps: n.steps, notes: n.notes, pack_size: n.pack_size ?? null };
-      } else {
-        unit_known = !['unit_unknown', 'unit_incompatible', 'pack_size_unknown'].includes(n.reason);
-        flags.push(n.reason);
-        conversion = { error: n.reason, detail: n.detail };
-      }
-      if (!taxKnown && !l.inherits_last_year && normalized != null) assumption_keys.push('tax_basis_assumed_excl');
-    }
-
-    flags.push(
-      ...lineFlags({
-        price_as_written: l.price, normalized_inr: normalized, last_year_rate_inr: rfx?.last_year_rate_inr ?? null,
-        evidence: l.evidence, inherits_last_year: l.inherits_last_year,
-      }),
-    );
-    if (prep.source_type === 'xlsx' && hidden.some((h) => l.evidence.locator.includes(`'${h}'`))) flags.push('from_hidden_sheet');
-
-    const decision = rfx
-      ? assignStatus({
-          source_type: prep.source_type,
-          read_confidence: l.read_confidence,
-          match_confidence: l.match_confidence,
-          flags,
-          unit_known,
-          assumption_keys,
-          has_price: normalized != null,
-        })
-      : { status: 'needs_review' as const, reasons: ['Not matched to an RFx line.'] };
+    // One derivation for extraction and for every later recompute (FX, GST, corrections).
+    const r = rfx
+      ? recomputeLine(
+          {
+            price: l.price, currency: l.currency, uom_text: l.uom_text, per_n: l.per_n ?? 1,
+            tax_basis: x.document.tax_basis, inherits_last_year: l.inherits_last_year,
+            base_uom: rfx.uom, last_year_rate_inr: rfx.last_year_rate_inr, unit_definitions: unitDefs,
+            read_confidence: l.read_confidence, match_confidence: l.match_confidence, source_type: prep.source_type,
+            evidence_quote: l.evidence.quote ?? null, evidence_locator: l.evidence.locator ?? null,
+            sticky_flags: sticky, overrides: {},
+          },
+          a,
+        )
+      : null;
+    const normalized = r?.normalized_inr ?? null;
+    const flags = r ? r.flags : sticky;
+    const assumption_keys = r?.assumption_keys ?? [];
+    const conversion: Record<string, unknown> = r ? conversionJson(r, { read_confidence: l.read_confidence, notes_from_model: l.notes }) : {};
+    const decision = r ? { status: r.status, reasons: r.reasons } : { status: 'needs_review' as const, reasons: ['Not matched to an RFx line.'] };
     statuses[decision.status] = (statuses[decision.status] ?? 0) + 1;
 
     const evidence = { ...l.evidence, source_type: prep.source_type, document_id: doc.id };
@@ -132,7 +120,7 @@ export async function persistExtraction(
         doc.vendor_id, rfx?.id ?? null, doc.id, prep.source_type, l.vendor_description, l.price, l.uom_text, l.currency,
         JSON.stringify({ tax: x.document.tax_basis, per_n: l.per_n ?? 1, inherits_last_year: l.inherits_last_year, pack_size: conversion.pack_size ?? null }),
         normalized,
-        JSON.stringify({ ...conversion, reasons: decision.reasons, base_status: decision.status, read_confidence: l.read_confidence, notes_from_model: l.notes }),
+        JSON.stringify(r ? conversion : { reasons: decision.reasons, base_status: decision.status, read_confidence: l.read_confidence, notes_from_model: l.notes }),
         JSON.stringify(l.conditions), decision.status,
         Math.min(l.match_confidence, READ_SCORE[l.read_confidence]),
         JSON.stringify(evidence), flags, [...new Set(assumption_keys)], l.match_confidence, l.match_reason,

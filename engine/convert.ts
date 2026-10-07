@@ -61,7 +61,12 @@ export function parseUnit(raw: string | null | undefined, perN = 1): ParsedUnit 
 const COUNT_BASES: BaseUom[] = ['piece', 'set', 'plate', 'pallet'];
 
 function packFits(defUnit: ParsedUnit, base: BaseUom): boolean {
-  return (defUnit.kind === 'count' && COUNT_BASES.includes(base)) || (defUnit.kind === 'roll' && base === 'roll') || (defUnit.kind === 'kg' && base === 'kg');
+  return (
+    (defUnit.kind === 'count' && COUNT_BASES.includes(base)) ||
+    (defUnit.kind === 'roll' && base === 'roll') ||
+    (defUnit.kind === 'kg' && base === 'kg') ||
+    (defUnit.kind === 'sq m' && base === 'sq m')
+  );
 }
 
 /**
@@ -104,6 +109,12 @@ export type NormalizeInput = {
   base_uom: BaseUom;
   last_year_rate_inr: number | null;
   unit_definitions?: UnitDefinition[];
+  /**
+   * The buyer's own statement of what one quoted unit holds ("1 bundle = 50 pieces").
+   * It wins over any vendor definition and over an unreadable unit, and it is the
+   * buyer's decision, not a system assumption.
+   */
+  pack_override?: { quantity: number; unit: string } | null;
 };
 
 export type NormalizeResult =
@@ -113,6 +124,7 @@ export type NormalizeResult =
       steps: ConversionStep[];
       assumption_keys: string[];
       pack_size?: number;
+      pack_source?: 'vendor' | 'buyer';
       notes: string[];
     }
   | { ok: false; reason: 'no_price' | 'unit_unknown' | 'unit_incompatible' | 'pack_size_unknown' | 'currency_unknown' | 'no_last_year_rate'; detail: string };
@@ -162,12 +174,24 @@ export function normalizePrice(input: NormalizeInput, a: Assumptions): Normalize
   // Unit
   const unit = parseUnit(input.uom_text, input.per_n ?? 1);
   const base = input.base_uom;
+  const po = input.pack_override;
   const divide = (n: number, reason: string, key?: string) => {
     if (n !== 1) {
       v = v / n;
       steps.push({ op: 'divide', factor: n, reason, ...(key ? { assumption_key: key } : {}) });
     }
   };
+
+  if (po && (unit.kind === 'pack' || unit.kind === 'unknown')) {
+    const defUnit = parseUnit(po.unit);
+    if (!(po.quantity > 0) || !packFits(defUnit, base)) {
+      return { ok: false, reason: 'unit_incompatible', detail: `The unit meaning set by the buyer (${po.quantity} ${po.unit}) does not match per ${base}.` };
+    }
+    const label = (input.uom_text ?? 'unit').replace(/^\s*per\s+/i, '').trim() || 'unit';
+    divide(po.quantity, `Buyer's unit meaning: 1 ${label} = ${po.quantity} ${po.unit}`, undefined);
+    notes.push(`Unit meaning set by the buyer: 1 ${label} = ${po.quantity} ${po.unit}.`);
+    return { ok: true, value_inr: v, steps, assumption_keys: keys, pack_size: po.quantity, pack_source: 'buyer', notes };
+  }
 
   switch (unit.kind) {
     case 'unknown':
@@ -205,7 +229,7 @@ export function normalizePrice(input: NormalizeInput, a: Assumptions): Normalize
       divide(def.means_quantity, `Vendor's own definition: 1 ${unit.term} = ${def.means_quantity} ${def.means_unit ?? 'units'}`, 'pack_size');
       keys.push('pack_size');
       notes.push(`Pack size taken from the vendor's note${def.quote ? `: "${def.quote}"` : ''}.`);
-      return { ok: true, value_inr: v, steps, assumption_keys: keys, pack_size: def.means_quantity, notes };
+      return { ok: true, value_inr: v, steps, assumption_keys: keys, pack_size: def.means_quantity, pack_source: 'vendor', notes };
     }
   }
   return { ok: true, value_inr: v, steps, assumption_keys: keys, notes };
