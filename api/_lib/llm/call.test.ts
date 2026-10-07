@@ -93,6 +93,8 @@ describe('callModel', () => {
   });
 
   it('reserves in flight cost so parallel calls cannot jointly pass the cap', async () => {
+    // The local .env.local may lower the cap for a development phase; this test is about the default Rs 300.
+    vi.stubEnv('SESSION_BUDGET_INR', '');
     const store = memoryStore();
     // worst case of one call: 1000 in at 2.5/M + 1000 out at 10/M = 0.0125 USD = Rs 1.20
     store.usage.push({ route: 'x', stage: 'extract', model: 'm', usage, est_cost_inr: 298.0, session_id: 's1', run_id: null, document_id: null, cache_hit: false });
@@ -104,5 +106,6 @@ describe('callModel', () => {
     await expect(callModel(req, ctx({ document_sha256: 'other' }), { client, store })).rejects.toBeInstanceOf(BudgetExceededError);
     release();
     await first;
+    vi.unstubAllEnvs();
   });
 });

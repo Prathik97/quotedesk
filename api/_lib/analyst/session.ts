@@ -2,13 +2,14 @@
 // state, and persistence of messages and results.
 import type Anthropic from '@anthropic-ai/sdk';
 import type pg from 'pg';
-import { DEFAULT_SCENARIO } from '../../../engine/award.js';
+import { DEFAULT_SCENARIO, type AwardResult } from '../../../engine/award.js';
+import { formatInrCompact } from '../../../engine/format.js';
 import { loadPrompt } from '../extract/model.js';
 import type { AnalystData } from './data.js';
 import { describeScenario } from './tools.js';
 import type { ChartPayload, ExportChip, SessionState, StoredResult } from './types.js';
 
-export const PROMPT_NAME = 'analyst.v1';
+export const PROMPT_NAME = 'analyst.v2';
 
 export function initialState(): SessionState {
   return { scenario: structuredClone(DEFAULT_SCENARIO), assumptions: {} };
@@ -110,4 +111,20 @@ export async function loadMessages(pool: pg.Pool, sessionId: string): Promise<St
 
 export async function saveMessage(pool: pg.Pool, sessionId: string, role: 'user' | 'assistant', content: unknown, toolCalls: unknown, meta: unknown): Promise<void> {
   await pool.query('insert into chat_messages (session_id, role, content, tool_calls, meta) values ($1,$2,$3,$4,$5)', [sessionId, role, JSON.stringify(content), toolCalls == null ? null : JSON.stringify(toolCalls), meta == null ? null : JSON.stringify(meta)]);
+}
+
+/** One line per stored result from earlier turns. The model may quote these figures and chart or export these ids. */
+export function priorResultsText(results: Map<string, StoredResult>, max = 10): string {
+  return [...results.values()]
+    .slice(-max)
+    .map((r) => {
+      const a = (r.data as { award?: AwardResult } | undefined)?.award;
+      const extra = a
+        ? ` Goods total ${formatInrCompact(a.totals.goods_total_inr)}, ${a.totals.lines_awarded} of ${a.totals.lines_total} lines awarded. ${r.notes[0] ?? ''}`
+        : r.tables[0]
+          ? ` ${r.tables[0].rows.length} rows.`
+          : '';
+      return `${r.id} (${r.kind}): ${r.title}.${extra}`;
+    })
+    .join('\n');
 }

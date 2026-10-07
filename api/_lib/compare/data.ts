@@ -253,6 +253,7 @@ export async function loadCompare(pool: pg.Pool): Promise<CompareResponse> {
     certainty: counts,
     readiness: ready,
     open_review: items.length,
+    open_items: items.map((i) => ({ vendor_key: vendorById.get(i.vendor_id)?.key ?? null, kind: i.kind, severity: i.severity, message: i.message })),
     ly_total_inr: ly,
   };
 }

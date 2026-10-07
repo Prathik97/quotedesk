@@ -71,7 +71,12 @@ export type TurnDeps = {
   getState: () => SessionState;
 };
 
-export type TurnInput = { question: string; history: HistoryMessage[] };
+export type TurnInput = {
+  question: string;
+  history: HistoryMessage[];
+  /** One line per result stored in earlier turns, so the model can chart or export them by id. */
+  priorResults?: string;
+};
 
 export type TurnOutput = {
   final: FinalAnswer;
@@ -99,9 +104,24 @@ export function parseAnswer(text: string): { body: string; callout: string | nul
   return { body: plain(body), callout: calloutM ? plain((calloutM[1] ?? '').trim()) : null, alternatives };
 }
 
-/** House style: no em or en dashes in copy. */
+function groupIndian(whole: string): string {
+  if (whole.length <= 3) return whole;
+  return `${whole.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ',')},${whole.slice(-3)}`;
+}
+
+/** Indian digit grouping for rupee amounts: 1,843,200 and ₹1843200 both become 18,43,200. Digits are never changed, only the commas. */
+export function indianGrouping(s: string): string {
+  return s
+    .replace(/(?<![\d,.])\d{1,3}(?:,\d{3}){2,}(?:\.\d+)?(?![\d,])/g, (m) => {
+      const [whole = '', frac] = m.replace(/,/g, '').split('.');
+      return `${groupIndian(whole)}${frac ? `.${frac}` : ''}`;
+    })
+    .replace(/₹\s?(\d{5,})(\.\d+)?(?![\d,])/g, (_m, whole: string, frac?: string) => `₹${groupIndian(whole)}${frac ?? ''}`);
+}
+
+/** House style: no em or en dashes in copy, and Indian digit grouping. */
 export function plain(s: string): string {
-  return s.replace(/\s*[—–]\s*/g, (m, off: number, all: string) => {
+  return indianGrouping(s).replace(/\s*[\u2014\u2013]\s*/g, (m, off: number, all: string) => {
     const before = all[off - 1] ?? '';
     const after = all[off + m.length] ?? '';
     return /\d/.test(before) && /\d/.test(after) ? ' to ' : ', ';
@@ -131,7 +151,8 @@ function tokensOf(system: Anthropic.TextBlockParam[], tools: Anthropic.Tool[], m
 
 export async function runTurn(deps: TurnDeps, input: TurnInput, emit: (e: AnalystEvent) => void): Promise<TurnOutput> {
   const stateText = deps.describeScenario(deps.getState());
-  const userContent = `<scenario_in_force>${stateText}</scenario_in_force>\n\n${input.question}`;
+  const prior = input.priorResults ? `<prior_results>\n${input.priorResults}\n</prior_results>\n` : '';
+  const userContent = `<scenario_in_force>${stateText}</scenario_in_force>\n${prior}\n${input.question}`;
   const messages: Anthropic.MessageParam[] = [...input.history.map((h) => ({ role: h.role, content: h.text }) as Anthropic.MessageParam), { role: 'user', content: userContent }];
 
   const steps: StepRecord[] = [];
@@ -215,8 +236,8 @@ export async function runTurn(deps: TurnDeps, input: TurnInput, emit: (e: Analys
   const warnings = [...notices];
 
   // Server number check: every figure must appear in something the model was given.
-  const prior = input.history.map((h) => h.text);
-  const check = checkNumbers(`${parsed.body}\n${parsed.callout ?? ''}`, [deps.contextText, input.question, ...prior, stateText, ...modelSeen]);
+  const earlier = input.history.map((h) => h.text);
+  const check = checkNumbers(`${parsed.body}\n${parsed.callout ?? ''}`, [deps.contextText, input.question, ...earlier, stateText, input.priorResults ?? '', ...modelSeen]);
   if (!check.ok) {
     warnings.push(`Some figures in this answer were not found in any tool result: ${check.unmatched.map((u) => u.text).join(', ')}. Treat them as unverified.`);
     log('warn', 'analyst_number_check_failed', { chat_session: deps.chatSession, unmatched: check.unmatched.map((u) => u.text) });

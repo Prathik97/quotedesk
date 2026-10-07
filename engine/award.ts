@@ -7,12 +7,11 @@
 // Missing is never zero: a line nobody eligible quoted is a coverage gap, not a free line.
 import type { CellStatus } from './certainty';
 import { landedTotal } from './convert';
+import { judgeScenario, type OpenItemInput, type Questionnaire, type ScenarioReadiness } from './readiness';
 import { isStrict, lineCarriesDiscount, parseThresholdInr, type ConditionalDiscount } from './scenario';
 import type { Freight } from './totals';
 
-export type Questionnaire = 'Cleared' | 'Failed' | 'Pending' | null;
-
-export type OpenItemInput = { kind: string; severity: 'info' | 'warn' | 'block'; message: string };
+export type { OpenItemInput, Questionnaire, ScenarioReadiness };
 
 export type AwardVendor = {
   id: string;
@@ -166,16 +165,6 @@ export type Reliance = {
   unresolved_value_inr: number;
   /** Every allocated cell that is not Confirmed, largest value first. */
   not_confirmed: RelianceCell[];
-};
-
-export type ScenarioReadiness = {
-  level: 'ready' | 'ready_with_open_items' | 'not_ready';
-  label: 'Ready' | 'Ready with open items' | 'Not ready';
-  /** Vendors included in the scenario (eligible under its filters). */
-  included_vendors: string[];
-  blockers: { vendor_key: string; kind: string; message: string }[];
-  open_items: { vendor_key: string | null; kind: string; message: string }[];
-  summary: string;
 };
 
 export type AwardResult = {
@@ -705,41 +694,19 @@ export function simulateAward(input: AwardInput, scenario: Scenario): AwardResul
   if (gaps.length > 0) warnings.push(`${gaps.length} ${gaps.length === 1 ? 'line has' : 'lines have'} no eligible usable price and ${gaps.length === 1 ? 'is' : 'are'} not in the totals.`);
 
   // Readiness for this scenario: only vendors included in it.
-  const included = input.vendors.filter((v) => eligible.has(v.id));
-  const blockers: ScenarioReadiness['blockers'] = [];
-  const open: ScenarioReadiness['open_items'] = [];
-  for (const v of included) {
-    const cells = input.cells.filter((c) => c.vendor_id === v.id);
-    const nr = cells.filter((c) => c.status === 'needs_review').length;
-    const cf = cells.filter((c) => c.status === 'conflict').length;
-    if (nr > 0) blockers.push({ vendor_key: v.key, kind: 'line_needs_review', message: `${nr} ${nr === 1 ? 'cell needs' : 'cells need'} review.` });
-    if (cf > 0) blockers.push({ vendor_key: v.key, kind: 'conflict', message: `${cf} ${cf === 1 ? 'cell is' : 'cells are'} in conflict.` });
-    if (v.questionnaire === 'Pending') blockers.push({ vendor_key: v.key, kind: 'knockout_pending', message: 'A knockout question is undecided.' });
-    if (v.questionnaire === 'Failed' && byVendor.some((x) => x.vendor_key === v.key)) blockers.push({ vendor_key: v.key, kind: 'knockout_failed', message: 'The vendor failed a knockout and is in the award.' });
-    for (const i of v.open_items) {
-      if (i.kind === 'knockout_pending' || i.kind === 'line_needs_review' || i.kind === 'conflict') continue;
-      open.push({ vendor_key: v.key, kind: i.kind, message: i.message });
-    }
-    if (v.freight.terms === 'extra' && v.freight.amount_inr == null && byVendor.some((x) => x.vendor_key === v.key) && !v.open_items.some((i) => i.kind === 'freight_amount_unknown')) {
-      open.push({ vendor_key: v.key, kind: 'freight_amount_unknown', message: 'Freight is extra with no amount stated.' });
-    }
-  }
-  if (reliance.assumed > 0) open.push({ vendor_key: null, kind: 'assumed_cells', message: `${reliance.assumed} awarded ${reliance.assumed === 1 ? 'cell is' : 'cells are'} Assumed.` });
-  if (gaps.length > 0) open.push({ vendor_key: null, kind: 'coverage_gaps', message: `${gaps.length} ${gaps.length === 1 ? 'line is' : 'lines are'} not covered.` });
-  const level: ScenarioReadiness['level'] = blockers.length > 0 ? 'not_ready' : open.length > 0 ? 'ready_with_open_items' : 'ready';
-  const readiness: ScenarioReadiness = {
-    level,
-    label: level === 'not_ready' ? 'Not ready' : level === 'ready' ? 'Ready' : 'Ready with open items',
-    included_vendors: included.map((v) => v.key),
-    blockers,
-    open_items: open,
-    summary:
-      level === 'not_ready'
-        ? `${blockers.length} ${blockers.length === 1 ? 'blocker' : 'blockers'} among the included vendors.`
-        : level === 'ready'
-          ? 'Nothing is open for the included vendors.'
-          : `${open.length} open ${open.length === 1 ? 'item' : 'items'} to close before a PO goes out.`,
-  };
+  const awardedKeys = new Set(byVendor.map((x) => x.vendor_key));
+  const readiness = judgeScenario(
+    input.vendors
+      .filter((v) => eligible.has(v.id))
+      .map((v) => {
+        const cells = input.cells.filter((c) => c.vendor_id === v.id);
+        return {
+          key: v.key, questionnaire: v.questionnaire, needs_review: cells.filter((c) => c.status === 'needs_review').length, conflict: cells.filter((c) => c.status === 'conflict').length,
+          in_award: awardedKeys.has(v.key), freight: v.freight, open_items: v.open_items,
+        };
+      }),
+    { assumed_cells: reliance.assumed, gaps: gaps.length },
+  );
 
   return {
     scenario: s,

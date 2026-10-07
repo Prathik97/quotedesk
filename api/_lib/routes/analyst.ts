@@ -8,7 +8,7 @@ import { ApiError, log, route } from '../http.js';
 import { runTurn, TurnCapError, type AnalystEvent, type HistoryMessage } from '../analyst/agent.js';
 import { realAgentClient } from '../analyst/agentClient.js';
 import { loadAnalystData } from '../analyst/data.js';
-import { createSession, describeState, describeStepLabel, loadMessages, loadResults, loadState, saveMessage, saveResults, saveState, systemBlocks } from '../analyst/session.js';
+import { createSession, describeState, describeStepLabel, loadMessages, priorResultsText, loadResults, loadState, saveMessage, saveResults, saveState, systemBlocks } from '../analyst/session.js';
 import { executeTool, toolDefinitions, type ToolCtx } from '../analyst/tools.js';
 import type { ChartPayload, ExportChip } from '../analyst/types.js';
 import { BudgetExceededError } from '../llm/call.js';
@@ -67,7 +67,7 @@ export default route(['GET', 'POST'], async (req: VercelRequest, res: VercelResp
         system: sys.blocks, tools: toolDefinitions() as never, contextText: sys.contextText,
         runTool: (name, input) => executeTool(ctx, name, input), describeStep: describeStepLabel, describeScenario: (s) => describeState(s), getState: () => ctx.state,
       },
-      { question: message, history },
+      { question: message, history, priorResults: priorResultsText(results) },
       (e) => {
         if (e.type === 'chart') charts.push(e.chart);
         if (e.type === 'export') exportsOut.push(e.chip);

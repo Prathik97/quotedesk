@@ -134,6 +134,17 @@ describe('runTurn', () => {
   });
 });
 
+describe('prior results', () => {
+  it('lists earlier results in the user message and counts their figures as sourced', async () => {
+    const client = fakeClient([text('The first scenario total was ₹3.90 crore.\n<callout>None.</callout>')]);
+    const { d } = deps(client);
+    const events: AnalystEvent[] = [];
+    const out = await runTurn(d, { question: 'Export it', history: [], priorResults: 'r1 (award): Cleared only. Goods total ₹3.90 crore, 30 of 30 lines awarded.' }, (e) => events.push(e));
+    expect(JSON.stringify((client.requests[0] as { messages: unknown }).messages)).toContain('<prior_results>\\nr1 (award)');
+    expect(out.check.ok).toBe(true);
+  });
+});
+
 describe('parseAnswer and style', () => {
   it('splits the callout and the alternative chips from the body', () => {
     const a = parseAnswer('Body text.\n<callout>Note.</callout>\n<alternatives>[{"label":"Also pending","question":"Include pending vendors"}]</alternatives>');
@@ -142,8 +153,12 @@ describe('parseAnswer and style', () => {
   it('drops a malformed alternatives block instead of showing it', () => {
     expect(parseAnswer('Hi.<alternatives>not json</alternatives>').alternatives).toEqual([]);
   });
+  it('regroups western digit grouping as Indian grouping and leaves everything else alone', () => {
+    expect(plain('₹1,843,200 and 12,345,678.50 but 4,01,29,300 and 39,812 and 1,234.5')).toBe('₹18,43,200 and 1,23,45,678.50 but 4,01,29,300 and 39,812 and 1,234.5');
+    expect(plain('₹39081449.12 and ₹299500 and ₹87.46 lakh and ₹1234')).toBe('₹3,90,81,449.12 and ₹2,99,500 and ₹87.46 lakh and ₹1234');
+  });
   it('removes em and en dashes from copy', () => {
-    expect(plain('Cheapest — but not cleared. Range 5–10.')).toBe('Cheapest, but not cleared. Range 5 to 10.');
+    expect(plain('Cheapest \u2014 but not cleared. Range 5\u201310.')).toBe('Cheapest, but not cleared. Range 5 to 10.');
   });
 });
 

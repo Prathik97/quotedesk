@@ -1,7 +1,8 @@
 // Persistent top strip: certainty counts with click through, and decision readiness (FR-9.2, FR-9.3).
 import { CircleCheck, OctagonX, TriangleAlert } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { CellStatus } from '../../engine/certainty';
+import { judgeScenario } from '../../engine/readiness';
 import { useApp } from '@/lib/store';
 import { STATUS_ICON, STATUS_LABEL, STATUS_TEXT_CLASS } from '@/lib/status';
 import { cn } from '@/lib/utils';
@@ -16,11 +17,22 @@ const LABEL: Record<CellStatus, (n: number) => string> = {
 };
 
 export function TopStrip() {
-  const { data, setPage, setTab, setStatusFilter, busy } = useApp();
+  const { data, setPage, setTab, setStatusFilter, busy, toggles } = useApp();
   const [open, setOpen] = useState(false);
-  if (!data) return <div className="text-sm text-muted-foreground">Certainty counts load with the comparison.</div>;
+  // Readiness is judged for the vendors in the current view: all five, or cleared vendors only.
+  const r = useMemo(() => {
+    if (!data) return null;
+    const included = data.vendors.filter((v) => !toggles.onlyCleared || v.questionnaire === 'Cleared');
+    return judgeScenario(
+      included.map((v) => ({
+        key: v.key, questionnaire: v.questionnaire, needs_review: v.counts.needs_review, conflict: v.counts.conflict, in_award: false,
+        freight: { terms: v.freight_terms, amount_inr: v.freight_amount_inr }, open_items: data.open_items.filter((i) => i.vendor_key === v.key),
+      })),
+      { assumed_cells: included.reduce((n, v) => n + v.counts.assumed, 0), gaps: 0 },
+    );
+  }, [data, toggles.onlyCleared]);
+  if (!data || !r) return <div className="text-sm text-muted-foreground">Certainty counts load with the comparison.</div>;
   const c = data.certainty;
-  const r = data.readiness;
 
   const go = (s: CellStatus) => {
     setPage('comparison');
@@ -34,8 +46,8 @@ export function TopStrip() {
   };
   const shown: CellStatus[] = ['confirmed', 'assumed', 'needs_review', ...(c.conflict > 0 ? (['conflict'] as CellStatus[]) : []), ...(c.missing > 0 ? (['missing'] as CellStatus[]) : [])];
 
-  const Icon = r.level === 'ready' ? CircleCheck : r.level === 'ready_with_assumptions' ? TriangleAlert : OctagonX;
-  const tone = r.level === 'ready' ? 'border-green-300 bg-green-50 text-status-confirmed' : r.level === 'ready_with_assumptions' ? 'border-amber-300 bg-amber-50 text-status-assumed' : 'border-red-300 bg-red-50 text-status-conflict';
+  const Icon = r.level === 'ready' ? CircleCheck : r.level === 'ready_with_open_items' ? TriangleAlert : OctagonX;
+  const tone = r.level === 'ready' ? 'border-green-300 bg-green-50 text-status-confirmed' : r.level === 'ready_with_open_items' ? 'border-amber-300 bg-amber-50 text-status-assumed' : 'border-red-300 bg-red-50 text-status-conflict';
 
   return (
     <div className="flex items-center gap-4">
@@ -74,21 +86,39 @@ export function TopStrip() {
         </button>
         {open ? (
           <div role="dialog" aria-label="Decision readiness details" className="absolute right-0 top-9 z-40 w-[440px] rounded-lg border border-border bg-card p-3 text-sm shadow-lg">
-            <p className="font-medium">{r.label}</p>
+            <p className="font-medium">
+              {r.label}
+              <span className="ml-2 text-xs font-normal text-muted-foreground">{toggles.onlyCleared ? 'Cleared vendors only' : 'All vendors'}: {r.included_vendors.join(', ')}</span>
+            </p>
             <p className="mt-0.5 text-muted-foreground">{r.summary}</p>
-            {r.blockers.length > 0 ? (
-              <ul className="mt-2 max-h-64 space-y-1.5 overflow-auto">
-                {r.blockers.map((b, i) => (
-                  <li key={i} className="flex gap-2 text-xs">
-                    <OctagonX size={13} className="mt-0.5 shrink-0 text-status-conflict" aria-hidden />
-                    <span>
-                      {b.vendor ? <span className="font-medium">{b.vendor}: </span> : null}
-                      {b.message}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+            <div className="max-h-64 overflow-auto">
+              {r.blockers.length > 0 ? (
+                <>
+                  <p className="mt-2 text-xs font-semibold">Blockers</p>
+                  <ul className="mt-1 space-y-1.5">
+                    {r.blockers.map((b, i) => (
+                      <li key={i} className="flex gap-2 text-xs">
+                        <OctagonX size={13} className="mt-0.5 shrink-0 text-status-conflict" aria-hidden />
+                        <span><span className="font-medium">{b.vendor_key}: </span>{b.message}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+              {r.open_items.length > 0 ? (
+                <>
+                  <p className="mt-2 text-xs font-semibold">Open items before a PO</p>
+                  <ul className="mt-1 space-y-1.5">
+                    {r.open_items.map((b, i) => (
+                      <li key={i} className="flex gap-2 text-xs">
+                        <TriangleAlert size={13} className="mt-0.5 shrink-0 text-status-assumed" aria-hidden />
+                        <span>{b.vendor_key ? <span className="font-medium">{b.vendor_key}: </span> : null}{b.message}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+            </div>
             <div className="mt-3 flex justify-end gap-2">
               <Btn
                 small

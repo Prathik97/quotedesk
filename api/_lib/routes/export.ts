@@ -5,7 +5,7 @@ import { loadResults } from '../analyst/session.js';
 import { db } from '../db.js';
 import { ApiError, route } from '../http.js';
 
-const Q = z.object({ session: z.string().uuid(), result: z.string().min(1).max(20), format: z.enum(['xlsx', 'csv']) });
+const Q = z.object({ session: z.string().uuid(), result: z.string().min(1).max(20), format: z.enum(['xlsx', 'csv']), name: z.string().max(60).regex(/^[a-z0-9-]+$/).optional() });
 
 export default route(['GET'], async (req, res) => {
   const q = Q.safeParse(req.query);
@@ -13,7 +13,7 @@ export default route(['GET'], async (req, res) => {
   const results = await loadResults(db(), q.data.session);
   const r = results.get(q.data.result);
   if (!r) throw new ApiError(404, 'not_found', 'That result is not stored. Ask the analyst again and export the new answer.');
-  const name = (r.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'export').slice(0, 50);
+  const name = q.data.name ?? (r.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'export').slice(0, 50);
   if (q.data.format === 'csv') {
     const t = r.tables[0];
     if (!t) throw new ApiError(404, 'not_found', 'That result has no table to export.');

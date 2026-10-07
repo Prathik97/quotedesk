@@ -32,3 +32,14 @@ Real email sending and receiving, authentication and multi tenancy, vendor porta
 - **Corrections survive re-extraction.** Re-running a document replaces its lines and drops their overrides and corrections. Fine for now; to revisit with the inbox.
 - **Eval page in the app.** `eval/EVAL_REPORT.md` exists; the page is not built.
 - **Needs review cells in the stored data.** The stored run produced none, so that part of the queue shows empty. It is exercised by unit tests, not by the live data.
+
+## Cut or deferred in phase 5 (2026-10-08)
+- **PDF decision memo and the approval note as a document.** The analyst drafts the note as chat text; the memo is phase 7.
+- **Rate limits, daily spend cap and the usage meter.** The per turn cap (Rs 12) and the session guard exist; per IP and daily limits are phase 8.
+- **Optimal split award.** `split_cap` is greedy and says so. A proper solver (integer program) was not worth it for 30 lines and 5 vendors.
+- **More than one discount rule per vendor in the equilibrium search.** It handles several, but only V2 has one in the data and that is the only case tested live.
+- **Tool output replay across turns.** Only answer text and a one line summary of earlier results are replayed. A follow up that needs an old figure re-runs the tool.
+- **Vendor level and line level scenario assumptions.** Only the global FX and GST can be overridden for a scenario.
+- **Held out questions.** The eight test questions were also the ones I tuned the prompt against, so they are not a held out test. The report says so.
+- **Streaming resume.** If the connection drops mid answer the page says so and the user asks again; the partial text is not recovered.
+- **A visual regression pass of the chat on narrow screens.** Desktop first, as the brief allows.

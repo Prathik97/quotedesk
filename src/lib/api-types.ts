@@ -201,6 +201,8 @@ export type CompareResponse = {
   certainty: CertaintyCounts;
   readiness: Readiness;
   open_review: number;
+  /** Every open review item, so readiness can be judged for any set of vendors. */
+  open_items: { vendor_key: string | null; kind: string; severity: 'info' | 'warn' | 'block'; message: string }[];
   ly_total_inr: number;
 };
 

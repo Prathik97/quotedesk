@@ -607,7 +607,7 @@ async function exportTool(ctx: ToolCtx, input: z.infer<typeof TOOL_SCHEMAS.expor
   const base = (input.filename ?? res.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'export';
   const chip: ExportChip = {
     result_id: res.id, format: input.format, filename: `${base}.${input.format}`, rows,
-    url: `/api/export?session=${ctx.sessionId}&result=${encodeURIComponent(res.id)}&format=${input.format}`,
+    url: `/api/export?session=${ctx.sessionId}&result=${encodeURIComponent(res.id)}&format=${input.format}&name=${encodeURIComponent(base)}`,
   };
   return { model: { export_ready: true, filename: chip.filename, format: chip.format, rows: chip.rows, note: 'A download chip is shown to the user. Tell them the file is ready; do not invent a link.' }, summary: `Export ready: ${chip.filename}`, export: chip, rows_used: rows };
 }

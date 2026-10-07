@@ -37,7 +37,7 @@ export function realAgentClient(): AgentClient {
         tools: req.tools,
         messages: req.messages,
         ...(req.tool_choice ? { tool_choice: req.tool_choice } : {}),
-        thinking: { type: 'disabled' },
+        thinking: { type: 'between_tools' },
       });
       s.on('text', (d: string) => onText(d));
       const m = await s.finalMessage();

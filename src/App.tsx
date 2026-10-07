@@ -4,6 +4,7 @@ import { EvidenceDrawer } from '@/components/EvidenceDrawer';
 import { TopStrip } from '@/components/TopStrip';
 import { AppProvider, useApp, type Page } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { Analyst } from '@/pages/Analyst';
 import { ComingNext } from '@/pages/ComingNext';
 import { Comparison } from '@/pages/Comparison';
 import { Inbox } from '@/pages/Inbox';
@@ -13,7 +14,7 @@ const STAGES: { id: Page; label: string; icon: typeof FileText; soon?: boolean }
   { id: 'rfx', label: 'Issued RFx (saved)', icon: FileText },
   { id: 'inbox', label: 'Inbox', icon: InboxIcon },
   { id: 'comparison', label: 'Comparison', icon: BarChart3 },
-  { id: 'analyst', label: 'Analyst', icon: MessageSquare, soon: true },
+  { id: 'analyst', label: 'Analyst', icon: MessageSquare },
   { id: 'decision', label: 'Decision', icon: Scale, soon: true },
 ];
 
@@ -67,7 +68,7 @@ function Shell() {
           {page === 'rfx' ? <IssuedRfx /> : null}
           {page === 'inbox' ? <Inbox /> : null}
           {page === 'comparison' ? <Comparison /> : null}
-          {page === 'analyst' ? <ComingNext title="Analyst" what="Ask the comparison questions in plain language and get answers backed by tools, with the cells they rely on and how many are assumed." /> : null}
+          {page === 'analyst' ? <Analyst /> : null}
           {page === 'decision' ? <ComingNext title="Decision" what="Turn a scenario into an award decision pack that lists every assumption and every unresolved item." /> : null}
         </main>
       </div>
