@@ -1,0 +1,8 @@
+## Known limitations (read before trusting the numbers above)
+
+1. **This is not a held out test.** Prompts and engine rules were debugged against these same 15 documents. A perfect line score here says the pipeline handles these planted edges; it does not predict accuracy on an evaluator's own file. No truth values or planted phrases were copied into prompts (checked by grep), but every fix was prompted by a failure seen on this set.
+2. **One run is one sample.** Model output varies between runs. In one V5 run the blanket "same as last year" statement came back at match confidence 0.80 (below the 0.85 bar) and in others at 0.85 or more. Code now verifies that kind of scope deterministically (DECISIONS D21), but other borderline confidences can still flip a cell between Confirmed and Needs review from run to run. That flip only ever moves toward more review, never toward a silent wrong value.
+3. **Questionnaire labels we disagree with (3 of 60).** V4 Q1 and V5 Q1 answer "certificate attached" without stating a number or expiry, which the model marks partial and the answer key marks answered. The knockout still resolves correctly from the attached certificate's expiry. V5 Q2 ("testing outsourced to a lab") is marked answered "no" but inferred, so the knockout stays Pending with the tentative fail shown. The key marks it partial.
+4. **Photo lines are never Confirmed.** All 30 V4 values were read exactly, but they stay Assumed by design (DECISIONS D2). A buyer must eyeball the crop.
+5. **Certificates are read for facts only.** Name and expiry checks are deterministic, but a forged or edited certificate would not be detected.
+6. **Email bodies are documents.** Cover notes cost a classification call each (about Rs 0.06) and are then skipped.

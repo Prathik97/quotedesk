@@ -13,3 +13,12 @@ Real email sending and receiving, authentication and multi tenancy, vendor porta
 
 ## Deferred
 - **Held out vendor variant for the eval.** Revisit after phase 5 only if there is time.
+
+## Cut or deferred in phase 2 (2026-10-07)
+- **Improvement rounds 2 and 3.** Not run; see DECISIONS D27.
+- **Structured outputs (API constrained JSON).** Prompted JSON plus zod plus one repair is enough at this volume (D17). Revisit if repairs become common.
+- **Extraction UI.** Re-run and retry buttons, per document error display and the inbox pipeline view arrive with the comparison and inbox screens (phases 3 and 6). `/api/extract` already returns per document results and errors.
+- **Upload endpoint with signed Storage URLs.** The pipeline accepts any stored document; the upload route itself is phase 6.
+- **Image crop rendering.** The model returns a normalized region for photo evidence; drawing the crop is the evidence drawer (phase 4).
+- **Opus for the photo.** Not needed: Sonnet read all 30 rate card prices exactly.
+- **Held out vendor variant.** Still deferred; the eval is therefore not a held out test (stated in the report).

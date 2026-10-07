@@ -52,3 +52,41 @@ Seed 2027. Excel and Word zips are normalized (fixed entry timestamps and core d
 
 **D14. Fonts on the V4 photo come from the macOS system Arial, falling back to DejaVu, then to the Pillow default.**
 The committed image is the reference artifact. Regenerating on another OS may change the pixels but not the truth.
+
+## 2026-10-07 Phase 2: extraction and evaluation
+
+**D15. Excel is parsed with exceljs, not SheetJS.** The npm `xlsx` package (0.18.5) has known prototype pollution and ReDoS issues on untrusted files, and evaluators may upload their own. exceljs reads hidden sheet state and merged regions, which is all FR-4.2 needs. `npm audit` shows 5 moderate transitive findings (mammoth's CLI argument parser, a `uuid` buffer option); neither code path is reachable from ours.
+
+**D16. Model per stage.** Classification uses `MODEL_FAST` (Haiku 4.5). Quote extraction and certificate facts use `MODEL_EXTRACT` (Sonnet 5.5) with thinking turned off (`thinking: {type: "between_tools"}`): the job is transcription, and thinking tokens are billed as output on a tight budget. Opus was not needed; the photo read 30 of 30 prices exactly.
+
+**D17. JSON by instruction, validated by zod, one repair call.** Alternative: the API's structured outputs. Rejected for now so the spec's repair path is real and the schema can be lenient where harmless (numeric strings, omitted defaults). SDK retries are set to 0; the only retry anywhere is the single repair.
+
+**D18. Cost guard is code, not goodwill.** Every model call goes through `callModel`: dev cache lookup, then a hard session cap (Rs 300, the env can lower it but never raise it), reserving the worst case (all input at the cache write rate, output at max_tokens) including calls in flight, then the call, then a usage_log row and a printed cost line. The budget session id lives in `.qd-session` (gitignored) so spend accumulates across every script. Cache hits cost 0, are logged with `cache_hit = true`, and are labelled `[CACHE HIT]` in output and in the eval report header. Truncated replies are never cached. Unit tests inject a fake client; constructing the real client under Vitest throws.
+
+**D19. Email bodies are documents.** A reply's body can carry prices or answers (V4's questionnaire answers are only in its email). Each message body becomes a `text/plain` document unless the reply already includes the email as an `.eml`. That makes 15 documents, not 13: 11 vendor files plus 4 bodies. Cover notes are classified `other` and skipped after one cheap classification call.
+
+**D20. Extraction contract changes from section 5.2.** (a) `document.group_statements`: one statement that prices or inherits several RFx lines ("cartons and everything else same as last year") is written once and expanded by code into per-line rows sharing the same evidence; a specific line price wins over the blanket. (b) The model omits null, empty and default keys; zod restores defaults. (c) A line's `read_confidence` may be omitted and then equals its evidence's read confidence, which is the same reading. (d) The JSON parser merges a repeated key instead of keeping only the last one (the model once emitted two `document` objects). Reason for all four: the first V5 call ran past 8000 output tokens and was cut off (Rs 8.86 spent for nothing), and two later calls needed a repair purely for shape.
+
+**D21. Code verifies the scope of blanket inheritance.** When a "same as last year" group covers exactly the RFx lines that the same document does not price elsewhere, code marks the scope verified and sets match confidence to 0.90, recording the model's own value in the reason. Partial groups keep the model's confidence. Prompted by run to run variance: the same statement scored 0.80 in one run and 0.85 or more in others.
+
+**D22. An inferred answer never decides a knockout.** The model marks each questionnaire answer `explicit` or `inferred`. A knockout resting on an inferred answer is Pending, with the tentative reading kept ("reads as a fail, confirm with the vendor"). Excluding a vendor on an inference is a silent guess (R5), and showing both readings is the alternative interpretation FR-7.3 asks for. This was prompted by the E12 miss: V5's "testing is outsourced" was read as a plain "no". An explicit failure on any other knockout still fails the vendor.
+
+**D23. Units: footnote markers and qualifiers.** "per box*" and "per box**" are different units when the vendor defines "box*" and "box**" differently, so the marker must match. Parenthetical qualifiers ("pcs (cartons, trays)") are ignored for unit parsing. If two definitions fit and nothing says which applies, the line is not converted (`pack_size_unknown`, Needs review).
+
+**D24. Status thresholds.** Confirmed needs: high read confidence, match confidence at or above 0.85, the number present in the evidence quote, a known unit, no assumption, and a non-photo source. Medium read confidence on a text source goes to review; on a photo it stays Assumed (photos are capped anyway). `unit_suspect` fires when the normalized price is more than 4 times or less than a quarter of last year (catches an unconverted per 100 or per tonne price); `unusual_vs_last_year` at 35 percent is information only. Stated totals tolerate 0.5 percent.
+
+**D25. Attachment checks are deterministic.** A certificate's legal name is compared with the quote letterhead name (as the model read it) and the vendor name, after removing case, punctuation and entity suffixes. When only the trade name matches, the flag says so. An expiry before the reply date flags the certificate, and its expiry feeds the ISO knockout when the answer itself says only "attached".
+
+**D26. Prompts are files read at runtime** (`prompts/<name>.vN.md`), versioned by name plus a content hash, so any edit invalidates the dev cache. Vercel will need `includeFiles` for `/prompts` (phase 8).
+
+**D27. Stopped after one improvement round.** After round 1 every line metric is at 100 percent and all 13 edges are detected. The 3 remaining questionnaire mismatches are labelling disagreements that change no decision (see the eval report's known limitations). Further rounds would tune toward the answer key on the same 15 documents, not improve the product, and would spend about Rs 44 each.
+
+### Iteration log
+
+| Round | What changed | Lines exact | Confident wrong | Edges | Questionnaire | Fresh run cost |
+|---|---|---|---|---|---|---|
+| Pre-eval (single documents) | v1 to v2 prompt: compact output, group statements; merging JSON parser; line confidence fallback; unit markers and qualifiers | n/a | n/a | n/a | n/a | Rs 70.47 spent bringing up all 15 documents one at a time |
+| 0 | First full fresh eval | 147 of 147 | 0 of 90 | 12 of 13 (E12 missed) | 55 of 60 | Rs 44.33 |
+| 1 | v3 prompt: answer basis; inferred answers never decide knockouts; code-verified blanket scope | 147 of 147 | 0 of 90 | 13 of 13 | 57 of 60 | Rs 43.60 |
+
+Phase 2 spend, from usage_log: Rs 161.67 of the Rs 300 cap.
