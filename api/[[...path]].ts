@@ -5,6 +5,7 @@ import analyst from './_lib/routes/analyst.js';
 import assumptions from './_lib/routes/assumptions.js';
 import compare from './_lib/routes/compare.js';
 import documents from './_lib/routes/documents.js';
+import exportRoute from './_lib/routes/export.js';
 import evidence from './_lib/routes/evidence.js';
 import extract from './_lib/routes/extract.js';
 import health from './_lib/routes/health.js';
@@ -18,7 +19,7 @@ import vendor from './_lib/routes/vendor.js';
 type Handler = (req: VercelRequest, res: VercelResponse) => Promise<void>;
 
 const routes: Record<string, Handler> = {
-  analyst, assumptions, compare, documents, evidence, extract, health, inbox, normalize, review, rfx, usage, vendor,
+  analyst, assumptions, compare, documents, evidence, export: exportRoute, extract, health, inbox, normalize, review, rfx, usage, vendor,
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
