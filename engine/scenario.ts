@@ -65,7 +65,7 @@ export function parseThresholdInr(text: string | null | undefined): number | nul
 }
 
 /** "above" and "over" are strict. "at least" and "minimum" include the threshold. */
-function isStrict(text: string): boolean {
+export function isStrict(text: string): boolean {
   if (/at least|not less than|minimum|min\.|or more|>=/i.test(text)) return false;
   return true;
 }
