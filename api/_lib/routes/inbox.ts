@@ -1,9 +1,9 @@
 // GET /api/inbox: vendor replies with attachments and extraction status, read only.
-import type { InboxResponse } from '../src/lib/api-types.js';
-import { pipelineOf, storedRun } from './_lib/compare/data.js';
-import { loadDocuments } from './_lib/compare/docs.js';
-import { db } from './_lib/db.js';
-import { route } from './_lib/http.js';
+import type { InboxResponse } from '../../../src/lib/api-types.js';
+import { pipelineOf, storedRun } from '../compare/data.js';
+import { loadDocuments } from '../compare/docs.js';
+import { db } from '../db.js';
+import { route } from '../http.js';
 
 export default route(['GET'], async (): Promise<InboxResponse> => {
   const pool = db();

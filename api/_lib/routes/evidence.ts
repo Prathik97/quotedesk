@@ -2,18 +2,18 @@
 // Everything the evidence drawer shows: source, raw value, conversions with factors,
 // assumptions, flags, corrections and a plain language reason for the status.
 import { z } from 'zod';
-import { toCellStatus } from '../engine/certainty.js';
-import { choosePackDefinition, parseUnit, unitMarker } from '../engine/convert.js';
-import { assumptionText, explainConfidence, flagText } from '../engine/explain.js';
-import { traceConversion } from '../engine/recompute.js';
-import type { BaseUom, ReadConfidence, SourceType, UnitDefinition } from '../engine/types.js';
-import type { EvidenceResponse, LineDef, SourceContext, SourceRef } from '../src/lib/api-types.js';
-import { defaults } from './_lib/compare/assumptions.js';
-import { storedRun } from './_lib/compare/data.js';
-import { evidenceContext } from './_lib/compare/source.js';
-import { signedUrl } from './_lib/compare/storage.js';
-import { db } from './_lib/db.js';
-import { ApiError, route } from './_lib/http.js';
+import { toCellStatus } from '../../../engine/certainty.js';
+import { choosePackDefinition, parseUnit, unitMarker } from '../../../engine/convert.js';
+import { assumptionText, explainConfidence, flagText } from '../../../engine/explain.js';
+import { traceConversion } from '../../../engine/recompute.js';
+import type { BaseUom, ReadConfidence, SourceType, UnitDefinition } from '../../../engine/types.js';
+import type { EvidenceResponse, LineDef, SourceContext, SourceRef } from '../../../src/lib/api-types.js';
+import { defaults } from '../compare/assumptions.js';
+import { storedRun } from '../compare/data.js';
+import { evidenceContext } from '../compare/source.js';
+import { signedUrl } from '../compare/storage.js';
+import { db } from '../db.js';
+import { ApiError, route } from '../http.js';
 
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 

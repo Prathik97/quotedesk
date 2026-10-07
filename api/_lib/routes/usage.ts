@@ -1,3 +1,3 @@
-import { notImplemented } from './_lib/http.js';
+import { notImplemented } from '../http.js';
 
 export default notImplemented('The usage meter');

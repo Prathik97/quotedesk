@@ -117,4 +117,4 @@ No model calls were made in this phase. Everything reads the stored extraction r
 
 **D38. State and tables are hand built.** No TanStack Query or Table: one small store and a custom grid, because the grid needs roving focus and arrow keys and the data is one payload.
 
-**D39. Vercel function count.** The API now has 12 route files (the hobby plan limit is 12). Phase 5 and later will exceed it; consolidate behind one catch all route in phase 8.
+**D39. One Vercel function for the whole API.** Route files moved to `api/_lib/routes/` (underscore folders are not deployed as functions) and a single `api/[[...path]].ts` routes `/api/<name>` to them. Phase 5 adds routes and would have passed the Hobby limit of 12. The dev shim now loads that same catch all, so local and deployed paths are identical. No behaviour change: 165 tests pass, and health, compare, vendor, usage and an unknown route answered as before.

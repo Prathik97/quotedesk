@@ -1,12 +1,12 @@
 // POST /api/extract { document_id, fresh? }  One document per call, idempotent.
 import { z } from 'zod';
-import { db } from './_lib/db.js';
-import { ApiError, route } from './_lib/http.js';
-import { BudgetExceededError } from './_lib/llm/call.js';
-import { realClient } from './_lib/llm/client.js';
-import { budgetSessionId } from './_lib/llm/session.js';
-import { pgStore } from './_lib/llm/store.js';
-import { processDocument } from './_lib/extract/pipeline.js';
+import { db } from '../db.js';
+import { ApiError, route } from '../http.js';
+import { BudgetExceededError } from '../llm/call.js';
+import { realClient } from '../llm/client.js';
+import { budgetSessionId } from '../llm/session.js';
+import { pgStore } from '../llm/store.js';
+import { processDocument } from '../extract/pipeline.js';
 
 const Body = z.object({ document_id: z.string().uuid(), fresh: z.boolean().optional().default(false) });
 

@@ -1,6 +1,6 @@
-import { db } from './_lib/db.js';
-import { envStatus } from './_lib/env.js';
-import { route } from './_lib/http.js';
+import { db } from '../db.js';
+import { envStatus } from '../env.js';
+import { route } from '../http.js';
 
 export default route(['GET'], async () => {
   const cfg = envStatus();

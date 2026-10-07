@@ -1,10 +1,10 @@
 // GET /api/vendor?id=X: one vendor's summary with terms, notes, totals and what makes the total incomplete.
 import { z } from 'zod';
-import { vendorTotal } from '../engine/totals.js';
-import type { VendorDetail } from '../src/lib/api-types.js';
-import { loadCompare } from './_lib/compare/data.js';
-import { db } from './_lib/db.js';
-import { ApiError, route } from './_lib/http.js';
+import { vendorTotal } from '../../../engine/totals.js';
+import type { VendorDetail } from '../../../src/lib/api-types.js';
+import { loadCompare } from '../compare/data.js';
+import { db } from '../db.js';
+import { ApiError, route } from '../http.js';
 
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 

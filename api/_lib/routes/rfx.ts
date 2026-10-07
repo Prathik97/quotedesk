@@ -1,9 +1,9 @@
 // GET /api/rfx: the saved RFx, read only. Labelled "Issued RFx (saved)" in the app.
-import { describeRule, type PassRule } from '../engine/questionnaire.js';
-import type { RfxResponse } from '../src/lib/api-types.js';
-import { storedRun } from './_lib/compare/data.js';
-import { db } from './_lib/db.js';
-import { ApiError, route } from './_lib/http.js';
+import { describeRule, type PassRule } from '../../../engine/questionnaire.js';
+import type { RfxResponse } from '../../../src/lib/api-types.js';
+import { storedRun } from '../compare/data.js';
+import { db } from '../db.js';
+import { ApiError, route } from '../http.js';
 
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 

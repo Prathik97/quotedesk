@@ -32,4 +32,3 @@ Real email sending and receiving, authentication and multi tenancy, vendor porta
 - **Corrections survive re-extraction.** Re-running a document replaces its lines and drops their overrides and corrections. Fine for now; to revisit with the inbox.
 - **Eval page in the app.** `eval/EVAL_REPORT.md` exists; the page is not built.
 - **Needs review cells in the stored data.** The stored run produced none, so that part of the queue shows empty. It is exercised by unit tests, not by the live data.
-- **API route consolidation** for the Vercel function limit (D39).

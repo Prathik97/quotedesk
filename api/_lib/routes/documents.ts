@@ -1,11 +1,11 @@
 // GET /api/documents?vendor_id=X lists a vendor's documents with signed URLs.
 // GET /api/documents?id=X returns one document with a preview and the lines read from it.
 import { z } from 'zod';
-import { storedRun } from './_lib/compare/data.js';
-import { loadDocuments, loadExtractedLines } from './_lib/compare/docs.js';
-import { documentPreview } from './_lib/compare/source.js';
-import { db } from './_lib/db.js';
-import { ApiError, route } from './_lib/http.js';
+import { storedRun } from '../compare/data.js';
+import { loadDocuments, loadExtractedLines } from '../compare/docs.js';
+import { documentPreview } from '../compare/source.js';
+import { db } from '../db.js';
+import { ApiError, route } from '../http.js';
 
 const Query = z.object({ vendor_id: z.string().uuid().optional(), id: z.string().uuid().optional() });
 

@@ -2,15 +2,15 @@
 // POST /api/review { action, ... }: accept as read, edit value, set unit meaning, mark not quoted,
 // dismiss with a reason, or undo. Every action writes a corrections row, then recomputes at once.
 import { z } from 'zod';
-import { BLOCKER_KINDS } from '../engine/certainty.js';
-import { assumptionText } from '../engine/explain.js';
-import type { LineOverrides } from '../engine/recompute.js';
-import type { ActionResponse, ReviewItem, ReviewResponse } from '../src/lib/api-types.js';
-import { defaults } from './_lib/compare/assumptions.js';
-import { storedRun } from './_lib/compare/data.js';
-import { recompute } from './_lib/compare/recompute.js';
-import { db } from './_lib/db.js';
-import { ApiError, route } from './_lib/http.js';
+import { BLOCKER_KINDS } from '../../../engine/certainty.js';
+import { assumptionText } from '../../../engine/explain.js';
+import type { LineOverrides } from '../../../engine/recompute.js';
+import type { ActionResponse, ReviewItem, ReviewResponse } from '../../../src/lib/api-types.js';
+import { defaults } from '../compare/assumptions.js';
+import { storedRun } from '../compare/data.js';
+import { recompute } from '../compare/recompute.js';
+import { db } from '../db.js';
+import { ApiError, route } from '../http.js';
 
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 

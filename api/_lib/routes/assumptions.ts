@@ -1,12 +1,12 @@
 // GET /api/assumptions lists them. POST /api/assumptions { key, value } (or value null to reset)
 // edits a global one as the buyer and recomputes every stored line at once. No model call.
 import { z } from 'zod';
-import type { AssumptionUpdateResponse } from '../src/lib/api-types.js';
-import { GLOBAL_KEYS, setGlobal } from './_lib/compare/assumptions.js';
-import { loadCompare } from './_lib/compare/data.js';
-import { recompute } from './_lib/compare/recompute.js';
-import { db } from './_lib/db.js';
-import { ApiError, route } from './_lib/http.js';
+import type { AssumptionUpdateResponse } from '../../../src/lib/api-types.js';
+import { GLOBAL_KEYS, setGlobal } from '../compare/assumptions.js';
+import { loadCompare } from '../compare/data.js';
+import { recompute } from '../compare/recompute.js';
+import { db } from '../db.js';
+import { ApiError, route } from '../http.js';
 
 const Body = z.discriminatedUnion('key', [
   z.object({ key: z.literal('usd_inr'), value: z.number().positive().max(10000).nullable() }),

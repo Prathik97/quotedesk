@@ -1,8 +1,8 @@
 // POST /api/normalize { vendor_id? }: deterministic recompute of stored lines. No model call.
 import { z } from 'zod';
-import { recompute } from './_lib/compare/recompute.js';
-import { db } from './_lib/db.js';
-import { ApiError, route } from './_lib/http.js';
+import { recompute } from '../compare/recompute.js';
+import { db } from '../db.js';
+import { ApiError, route } from '../http.js';
 
 const Body = z.object({ vendor_id: z.string().uuid().optional() }).optional();
 
