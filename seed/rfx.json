@@ -1,0 +1,73 @@
+{
+  "buyer": {
+    "name": "Greenfield Foods Pvt Ltd",
+    "address": "Plot 42, KIADB Industrial Area, Bommasandra, Bengaluru 560099",
+    "contact": "Meera Nair, Category Buyer, Packaging",
+    "email": "meera.nair@greenfieldfoods.example"
+  },
+  "rfx": {
+    "ref": "GFF/PKG/RFQ/FY27/014",
+    "title": "FY27 Corrugated Packaging and Consumables Annual Rate Contract",
+    "category": "Corrugated packaging and consumables",
+    "delivery_location": "Greenfield Foods Bengaluru plant, Bommasandra",
+    "payment_terms_requested_days": 45,
+    "validity_days": 90,
+    "gst_basis_requested": "excl_gst",
+    "currency": "INR",
+    "issued_on": "2026-04-06",
+    "due_on": "2026-04-17"
+  },
+  "lines": [
+    {"code": "CRT-5P-01", "section": "5 ply cartons", "description": "5 ply RSC carton 450x300x250 mm, BF 22, brown", "uom": "piece", "annual_qty": 120000, "ly_rate": 28.50},
+    {"code": "CRT-5P-02", "section": "5 ply cartons", "description": "5 ply RSC carton 400x300x200 mm, BF 22", "uom": "piece", "annual_qty": 90000, "ly_rate": 24.20},
+    {"code": "CRT-5P-03", "section": "5 ply cartons", "description": "5 ply RSC carton 500x350x300 mm, BF 22", "uom": "piece", "annual_qty": 60000, "ly_rate": 38.10},
+    {"code": "CRT-5P-04", "section": "5 ply cartons", "description": "5 ply RSC carton 600x400x400 mm, BF 25", "uom": "piece", "annual_qty": 25000, "ly_rate": 55.10},
+    {"code": "CRT-5P-05", "section": "5 ply cartons", "description": "5 ply RSC carton 350x250x150 mm, BF 22", "uom": "piece", "annual_qty": 80000, "ly_rate": 16.70},
+    {"code": "CRT-5P-06", "section": "5 ply cartons", "description": "5 ply RSC carton 450x300x250 mm, 2 colour flexo print", "uom": "piece", "annual_qty": 50000, "ly_rate": 30.70},
+    {"code": "CRT-5P-07", "section": "5 ply cartons", "description": "5 ply die cut mailer box 300x200x100 mm", "uom": "piece", "annual_qty": 40000, "ly_rate": 17.50},
+    {"code": "CRT-5P-08", "section": "5 ply cartons", "description": "5 ply telescopic box 550x400x350 mm (2 piece)", "uom": "piece", "annual_qty": 15000, "ly_rate": 66.00},
+    {"code": "CRT-3P-01", "section": "3 ply cartons", "description": "3 ply RSC carton 300x200x150 mm, BF 18", "uom": "piece", "annual_qty": 100000, "ly_rate": 6.40},
+    {"code": "CRT-3P-02", "section": "3 ply cartons", "description": "3 ply RSC carton 350x250x200 mm, BF 18", "uom": "piece", "annual_qty": 70000, "ly_rate": 9.75},
+    {"code": "CRT-3P-03", "section": "3 ply cartons", "description": "3 ply RSC carton 250x200x100 mm, BF 18", "uom": "piece", "annual_qty": 110000, "ly_rate": 4.90},
+    {"code": "CRT-3P-04", "section": "3 ply cartons", "description": "3 ply RSC carton 400x300x250 mm, BF 18", "uom": "piece", "annual_qty": 40000, "ly_rate": 14.80},
+    {"code": "CRT-3P-05", "section": "3 ply cartons", "description": "3 ply mono carton 200x150x80 mm", "uom": "piece", "annual_qty": 60000, "ly_rate": 3.00},
+    {"code": "CRT-3P-06", "section": "3 ply cartons", "description": "3 ply RSC carton 300x200x150 mm, 1 colour print", "uom": "piece", "annual_qty": 45000, "ly_rate": 7.30},
+    {"code": "SHT-5P-01", "section": "Sheets and rolls", "description": "5 ply corrugated sheet 1100x1500 mm, BF 22", "uom": "kg", "annual_qty": 60000, "ly_rate": 44.00},
+    {"code": "SHT-5P-02", "section": "Sheets and rolls", "description": "5 ply corrugated sheet 1250x1800 mm, BF 25", "uom": "kg", "annual_qty": 40000, "ly_rate": 45.50},
+    {"code": "SHT-3P-01", "section": "Sheets and rolls", "description": "3 ply corrugated sheet 1000x1400 mm, BF 18", "uom": "kg", "annual_qty": 50000, "ly_rate": 40.00},
+    {"code": "ROL-3P-01", "section": "Sheets and rolls", "description": "3 ply corrugated roll, 1000 mm width", "uom": "sq m", "annual_qty": 80000, "ly_rate": 16.40},
+    {"code": "INS-PRT-01", "section": "Inserts and protection", "description": "5 ply partition set, 3x2 cells, for 450x300x250 carton", "uom": "set", "annual_qty": 50000, "ly_rate": 9.80},
+    {"code": "INS-EDG-01", "section": "Inserts and protection", "description": "Paper edge protector 50x50x4 mm, 1000 mm length", "uom": "piece", "annual_qty": 30000, "ly_rate": 14.00},
+    {"code": "INS-TRY-01", "section": "Inserts and protection", "description": "Die cut corrugated tray 380x280x40 mm", "uom": "piece", "annual_qty": 25000, "ly_rate": 12.40},
+    {"code": "INS-PAD-01", "section": "Inserts and protection", "description": "Corrugated layer pad 1000x1200 mm", "uom": "piece", "annual_qty": 12000, "ly_rate": 38.00},
+    {"code": "TPE-BOPP-01", "section": "Consumables", "description": "BOPP tape 48 mm x 100 m, brown", "uom": "roll", "annual_qty": 60000, "ly_rate": 46.00},
+    {"code": "TPE-BOPP-02", "section": "Consumables", "description": "BOPP tape 48 mm x 50 m, clear", "uom": "roll", "annual_qty": 40000, "ly_rate": 28.00},
+    {"code": "FLM-STR-01", "section": "Consumables", "description": "Stretch film 500 mm, 23 micron", "uom": "kg", "annual_qty": 15000, "ly_rate": 112.00},
+    {"code": "FLM-BBL-01", "section": "Consumables", "description": "Air bubble film 1 m x 100 m", "uom": "roll", "annual_qty": 3000, "ly_rate": 1180.00},
+    {"code": "STP-PET-01", "section": "Consumables", "description": "PET strapping 15 mm", "uom": "kg", "annual_qty": 8000, "ly_rate": 132.00},
+    {"code": "PPR-KFT-01", "section": "Consumables", "description": "Void fill kraft paper roll, 50 gsm, 750 mm", "uom": "kg", "annual_qty": 10000, "ly_rate": 68.00},
+    {"code": "PRN-PLT-01", "section": "Tooling and pallets", "description": "Flexo printing plate, one time cost, per colour", "uom": "plate", "annual_qty": 24, "ly_rate": 4200.00, "is_one_time": true},
+    {"code": "PLT-WD-01", "section": "Tooling and pallets", "description": "Heat treated wooden pallet 1200x1000 mm", "uom": "piece", "annual_qty": 4000, "ly_rate": 740.00}
+  ],
+  "questions": [
+    {"code": "Q1", "text": "Do you hold a valid ISO 9001 certificate? Provide number and expiry.", "answer_type": "bool", "is_knockout": true, "pass_rule": {"op": "valid_on_date", "field": "expiry", "date": "submission"}},
+    {"code": "Q2", "text": "Do you have an in house testing lab (bursting strength, ECT, moisture)?", "answer_type": "bool", "is_knockout": true, "pass_rule": {"op": "eq", "value": true}},
+    {"code": "Q3", "text": "Customer rejection rate for the last 12 months (percent)", "answer_type": "number", "is_knockout": true, "pass_rule": {"op": "lte", "value": 2.0}},
+    {"code": "Q4", "text": "FSC chain of custody certified?", "answer_type": "bool", "is_knockout": false, "pass_rule": null},
+    {"code": "Q5", "text": "Monthly production capacity in cartons", "answer_type": "number", "is_knockout": false, "pass_rule": null},
+    {"code": "Q6", "text": "Standard lead time in days from PO", "answer_type": "number", "is_knockout": false, "pass_rule": null},
+    {"code": "Q7", "text": "Minimum order quantity per SKU", "answer_type": "number", "is_knockout": false, "pass_rule": null},
+    {"code": "Q8", "text": "Payment terms offered (days)", "answer_type": "number", "is_knockout": false, "pass_rule": null},
+    {"code": "Q9", "text": "Claims handling: days to resolve a damaged lot complaint", "answer_type": "number", "is_knockout": false, "pass_rule": null},
+    {"code": "Q10", "text": "Can you hold buffer stock for us? (units, duration)", "answer_type": "text", "is_knockout": false, "pass_rule": null},
+    {"code": "Q11", "text": "Number of similar customers served in Karnataka", "answer_type": "number", "is_knockout": false, "pass_rule": null},
+    {"code": "Q12", "text": "Sample submission within 7 days?", "answer_type": "bool", "is_knockout": false, "pass_rule": null}
+  ],
+  "vendors": [
+    {"key": "V1", "name": "Shree Balaji Corrugators", "legal_name": "Shree Balaji Corrugators Pvt Ltd", "email": "sales@shreebalajicorr.example", "location": "Peenya Industrial Area, Bengaluru", "arrival_day": 2, "factor": 0.98},
+    {"key": "V2", "name": "Kaveri Packaging Industries", "legal_name": "Kaveri Packaging Industries", "email": "quotes@kaveripack.example", "location": "Hosur, Tamil Nadu", "arrival_day": 3, "factor": 1.03},
+    {"key": "V3", "name": "Deccan Board Mills", "legal_name": "Deccan Board Mills Pvt Ltd", "email": "commercial@deccanboard.example", "location": "Tumakuru, Karnataka", "arrival_day": 5, "factor": 0.99},
+    {"key": "V4", "name": "Sunrise Pack Solutions", "legal_name": "Sunrise Pack Solutions", "email": "sunrisepack.blr@example.com", "location": "Bidadi, Ramanagara", "arrival_day": 7, "factor": 0.94},
+    {"key": "V5", "name": "Pacific Pack Imports", "legal_name": "Pacific Pack Imports LLP", "email": "trade@pacificpackimports.example", "location": "Chennai, Tamil Nadu", "arrival_day": 9, "factor": null}
+  ]
+}
