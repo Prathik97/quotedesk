@@ -141,3 +141,36 @@ describe('K1 on the stored Metro Kraft reply with the document text the live run
     for (const c of ['CRT-3P-01', 'CRT-3P-02', 'CRT-3P-03', 'CRT-3P-04', 'CRT-3P-05']) expect(by(c)?.flags).not.toContain('board_grade_mismatch');
   });
 });
+
+// The two live runs made after the K fixes (extract.v4, real model, run locally with no database). The vendor files are
+// not in the repo; the document text is rebuilt from the quotes the replies themselves carry.
+describe('live reruns after the K fixes, replayed with no model call', () => {
+  const seed = JSON.parse(readFileSync(new URL('../../../seed/rfx.json', import.meta.url), 'utf8')) as { lines: { code: string; section: string; description: string; uom: RfxLineRow['uom']; annual_qty: number; ly_rate: number | null }[] };
+  const real: RfxLineRow[] = seed.lines.map((l, i) => ({ id: `s${i}`, code: l.code, section: l.section, description: l.description, uom: l.uom, annual_qty: l.annual_qty, last_year_rate_inr: l.ly_rate }));
+  const load = (name: string) => {
+    const fx = JSON.parse(readFileSync(new URL(`../../../eval/fixtures/${name}.raw.json`, import.meta.url), 'utf8')) as { replies: { text: string }[] };
+    return ExtractionSchema.parse(parseJsonLoose(fx.replies.find((r) => /"document"\s*:/.test(r.text))?.text ?? ''));
+  };
+  const textOf = (x: Extraction) => ['[L1] ' + x.document.tax_statements.map((t) => t.quote).join('\n[L2] '), ...x.lines.map((l, i) => `[L${i + 3}] ${l.evidence.quote ?? ''}`)].join('\n');
+
+  it('Metro Kraft: all 24 lines derive the basic price; the 5 ply lines stay Needs review with the BF 20 text and no adjusted price', () => {
+    const x = load('sandbox-metro-kraft-v4');
+    const d = deriveLines({ source_type: 'xlsx', observations: [], text: textOf(x) } as unknown as Prepared, x, real, A);
+    expect(d).toHaveLength(24);
+    for (const l of d) expect(l.flags, l.rfx?.code).not.toContain('tax_unresolved');
+    expect(d.filter((l) => l.status === 'confirmed')).toHaveLength(18);
+    for (const l of d.filter((v) => v.rfx?.code.startsWith('CRT-5P') && v.flags.includes('board_grade_mismatch'))) {
+      expect(l.status).toBe('needs_review');
+      expect(l.reasons.join(' ')).toMatch(/BF 20.*No adjusted price is computed/);
+    }
+    expect(d.filter((l) => l.rfx?.code.startsWith('CRT-3P')).every((l) => l.status === 'confirmed' && !l.flags.includes('board_grade_mismatch'))).toBe(true);
+  });
+  it('Gupta: the tape quoted per carton with the definition in its own line is 45 per roll, Assumed, pack size from the vendor', () => {
+    const x = load('sandbox-gupta-whatsapp-d-v4');
+    const d = deriveLines({ source_type: 'email', observations: [], text: textOf(x) } as unknown as Prepared, x, real, A);
+    const t = d.find((l) => l.rfx?.code === 'TPE-BOPP-01');
+    expect(t?.normalized).toBeCloseTo(45, 10);
+    expect(t?.status).toBe('assumed');
+    expect(t?.assumption_keys).toContain('pack_size');
+  });
+});

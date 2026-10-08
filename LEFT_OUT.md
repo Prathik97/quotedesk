@@ -107,4 +107,7 @@ Real email sending and receiving, authentication and multi tenancy, vendor porta
 - **Running the fixed tax guard live.** The live budget was spent on the run that exposed the gap (D120). The fix was verified by replay of that reply only.
 - **Moving the stored pipeline to `extract.v4`.** It would orphan the cached replies of the stored run and change what a re-extraction costs. Try your file only for now.
 - **A line level scope for statements in tables.** Statements are matched to a line by product words. A column of "GST extra" next to each row of a spreadsheet is read as the line's own text only when the extraction used it as evidence or a condition.
+- **Checking which column a price came from.** On a dual column sheet (basic and incl tax columns) code detects the layout and ignores informational notes, but does not compare the evidence cell's column with the basic column. It would need a new flag and a change to the review reasons.
+- **Storing the vendor file text with the fixtures.** Replay would then include header rows and notes exactly as the model saw them, which would have caught K1. Left out because the vendor files are not kept in the repo (D120).
+- **Translating informational wording in other languages.** "For convenience" style wording is matched in English only.
 

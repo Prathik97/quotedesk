@@ -1,0 +1,319 @@
+{
+ "file": {
+  "filename": "WhatsApp_Gupta_Packaging_rates.txt",
+  "size_bytes": 1553,
+  "sha256": "655a1e37fcab32a95dfbeaec1633426b86845130e721f6dcece0ab745e006a19"
+ },
+ "captured_with": {
+  "prompt": "extract.v4",
+  "note": "Raw model replies only. The vendor file itself is not stored."
+ },
+ "usage": {
+  "cost_inr": 4.1806464,
+  "model_calls": 2,
+  "tokens_in": 7175,
+  "tokens_out": 3964,
+  "repaired": false
+ },
+ "global_notes": [
+  "Box dimensions are in inches; RFx lines are in mm.",
+  "Stretch film price valid only while stock lasts.",
+  "ISO certificate promised for tomorrow, not yet provided.",
+  "Edge protector quoted per mtr; RFx base unit is piece (1000 mm length)."
+ ],
+ "result_lines": [
+  {
+   "code": "CRT-3P-01",
+   "price": 6.3,
+   "normalized_inr": 5.624999999999999,
+   "status": "needs_review",
+   "flags": [
+    "tax_conflict"
+   ],
+   "assumptions": [
+    "tax_basis_model",
+    "tax_basis_conflict"
+   ],
+   "tax": {
+    "basis": "incl_gst",
+    "rate_pct": 12,
+    "rate_source": "stated",
+    "statement": "boxes ke rate GST included hai (12%)",
+    "conflict": true
+   },
+   "reason": "Match confidence 0.80 is below 0.85."
+  },
+  {
+   "code": "CRT-3P-03",
+   "price": 4.8,
+   "normalized_inr": 4.285714285714286,
+   "status": "needs_review",
+   "flags": [
+    "tax_conflict"
+   ],
+   "assumptions": [
+    "tax_basis_model",
+    "tax_basis_conflict"
+   ],
+   "tax": {
+    "basis": "incl_gst",
+    "rate_pct": 12,
+    "rate_source": "stated",
+    "statement": "boxes ke rate GST included hai (12%)",
+    "conflict": true
+   },
+   "reason": "Match confidence 0.80 is below 0.85."
+  },
+  {
+   "code": "CRT-3P-04",
+   "price": 9.5,
+   "normalized_inr": 8.482142857142856,
+   "status": "needs_review",
+   "flags": [
+    "tax_conflict",
+    "unusual_vs_last_year"
+   ],
+   "assumptions": [
+    "tax_basis_model",
+    "tax_basis_conflict"
+   ],
+   "tax": {
+    "basis": "incl_gst",
+    "rate_pct": 12,
+    "rate_source": "stated",
+    "statement": "boxes ke rate GST included hai (12%)",
+    "conflict": true
+   },
+   "reason": "Match confidence 0.75 is below 0.85."
+  },
+  {
+   "code": "CRT-5P-01",
+   "price": 28.4,
+   "normalized_inr": 25.357142857142854,
+   "status": "needs_review",
+   "flags": [
+    "tax_conflict"
+   ],
+   "assumptions": [
+    "tax_basis_model",
+    "tax_basis_conflict"
+   ],
+   "tax": {
+    "basis": "incl_gst",
+    "rate_pct": 12,
+    "rate_source": "stated",
+    "statement": "boxes ke rate GST included hai (12%)",
+    "conflict": true
+   },
+   "reason": "Match confidence 0.80 is below 0.85."
+  },
+  {
+   "code": "CRT-5P-02",
+   "price": 24.1,
+   "normalized_inr": 21.517857142857142,
+   "status": "needs_review",
+   "flags": [
+    "tax_conflict"
+   ],
+   "assumptions": [
+    "tax_basis_model",
+    "tax_basis_conflict"
+   ],
+   "tax": {
+    "basis": "incl_gst",
+    "rate_pct": 12,
+    "rate_source": "stated",
+    "statement": "boxes ke rate GST included hai (12%)",
+    "conflict": true
+   },
+   "reason": "Match confidence 0.80 is below 0.85."
+  },
+  {
+   "code": "CRT-5P-03",
+   "price": 37.6,
+   "normalized_inr": 33.57142857142857,
+   "status": "needs_review",
+   "flags": [
+    "tax_conflict"
+   ],
+   "assumptions": [
+    "tax_basis_model",
+    "tax_basis_conflict"
+   ],
+   "tax": {
+    "basis": "incl_gst",
+    "rate_pct": 12,
+    "rate_source": "stated",
+    "statement": "boxes ke rate GST included hai (12%)",
+    "conflict": true
+   },
+   "reason": "Match confidence 0.80 is below 0.85."
+  },
+  {
+   "code": "CRT-5P-05",
+   "price": 16.2,
+   "normalized_inr": 14.464285714285712,
+   "status": "needs_review",
+   "flags": [
+    "tax_conflict"
+   ],
+   "assumptions": [
+    "tax_basis_model",
+    "tax_basis_conflict"
+   ],
+   "tax": {
+    "basis": "incl_gst",
+    "rate_pct": 12,
+    "rate_source": "stated",
+    "statement": "boxes ke rate GST included hai (12%)",
+    "conflict": true
+   },
+   "reason": "Match confidence 0.80 is below 0.85."
+  },
+  {
+   "code": "FLM-STR-01",
+   "price": 104,
+   "normalized_inr": 104,
+   "status": "assumed",
+   "flags": [
+    "tax_conflict"
+   ],
+   "assumptions": [
+    "tax_basis_model",
+    "tax_basis_conflict"
+   ],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Sirf sheet, tape, film aur strap pe GST extra",
+    "conflict": true
+   },
+   "reason": "Assumptions applied: tax_basis_model."
+  },
+  {
+   "code": "INS-EDG-01",
+   "price": 14,
+   "normalized_inr": null,
+   "status": "needs_review",
+   "flags": [
+    "tax_unresolved",
+    "tax_conflict"
+   ],
+   "assumptions": [
+    "tax_basis_conflict"
+   ],
+   "tax": {
+    "basis": "unknown",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": null,
+    "conflict": true
+   },
+   "reason": "Not derived: whether GST is included in this price cannot be settled from the document, so no price excluding GST is shown. The vendor's tax statements conflict: \"Sab rates + GST extra, ex godown Tumkur road\" and \"boxes ke rate GST included hai (12%)\". The price is shown as the vendor wrote it (14 INR). Check the source."
+  },
+  {
+   "code": "PLT-WD-01",
+   "price": 690,
+   "normalized_inr": 690,
+   "status": "assumed",
+   "flags": [
+    "tax_conflict"
+   ],
+   "assumptions": [
+    "tax_basis_model",
+    "tax_basis_conflict"
+   ],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "690 + GST",
+    "conflict": true
+   },
+   "reason": "Assumptions applied: tax_basis_model."
+  },
+  {
+   "code": "SHT-5P-01",
+   "price": 44.5,
+   "normalized_inr": 44.5,
+   "status": "assumed",
+   "flags": [
+    "tax_conflict",
+    "conditional_price"
+   ],
+   "assumptions": [
+    "tax_basis_model",
+    "tax_basis_conflict"
+   ],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Sirf sheet, tape, film aur strap pe GST extra",
+    "conflict": true
+   },
+   "reason": "Assumptions applied: tax_basis_model."
+  },
+  {
+   "code": "STP-PET-01",
+   "price": 126000,
+   "normalized_inr": 126,
+   "status": "assumed",
+   "flags": [
+    "tax_conflict"
+   ],
+   "assumptions": [
+    "tax_basis_model",
+    "tax_basis_conflict"
+   ],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Sirf sheet, tape, film aur strap pe GST extra",
+    "conflict": true
+   },
+   "reason": "Assumptions applied: tax_basis_model."
+  },
+  {
+   "code": "TPE-BOPP-01",
+   "price": 4500,
+   "normalized_inr": 45,
+   "status": "assumed",
+   "flags": [
+    "tax_conflict"
+   ],
+   "assumptions": [
+    "pack_size",
+    "tax_basis_model",
+    "tax_basis_conflict"
+   ],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Sirf sheet, tape, film aur strap pe GST extra",
+    "conflict": true
+   },
+   "reason": "Assumptions applied: pack_size, tax_basis_model."
+  }
+ ],
+ "result_review": [
+  "Conflicting tax statements: \"Sab rates + GST extra, ex godown Tumkur road\" and \"boxes ke rate GST included hai (12%)\". Of the 13 lines it touches, 1 line is shown as Not derived (the price as the vendor wrote it, no price excluding GST); 7 lines are converted to a price excluding GST (7 at the vendor's stated rate); 12 lines were settled by the model's reading of the vendor's words, which code checked against the document. None is Confirmed."
+ ],
+ "replies": [
+  {
+   "n": 1,
+   "max_tokens": 300,
+   "text": "```json\n{\n  \"kind\": \"quote\",\n  \"confidence\": 0.98,\n  \"reason\": \"Document contains detailed prices for multiple packaging items (boxes, sheets, tape, film, straps, pallets, edge protectors) with delivery and payment terms.\"\n}\n```",
+   "stop_reason": "end_turn"
+  },
+  {
+   "n": 2,
+   "max_tokens": 16000,
+   "text": "{\"document\":{\"kind\":\"quote\",\"vendor_name_as_written\":\"Gupta Packaging\",\"currency_default\":\"INR\",\"tax_basis\":\"excl_gst\",\"validity_text\":\"Rates 10 din ke liye valid hai\",\"freight_terms\":\"extra\",\"freight_note\":\"ex godown Tumkur road\",\"payment_terms_text\":\"Payment 15 days. Delivery 7 din PO ke baad.\",\"conditional_discounts\":[{\"text\":\"50 ton ya upar ho to 42.8\",\"condition\":\"order of 50 ton or above (price 42.8 per kg)\",\"applies_to\":\"5ply sheet BF22 1100x1500\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L11\",\"quote\":\"5ply sheet BF22 1100x1500 - 44.5 per kg, 50 ton ya upar ho to 42.8\",\"read_confidence\":\"high\"}}],\"global_notes\":[\"Box dimensions are in inches; RFx lines are in mm.\",\"Stretch film price valid only while stock lasts.\",\"ISO certificate promised for tomorrow, not yet provided.\",\"Edge protector quoted per mtr; RFx base unit is piece (1000 mm length).\"],\"tax_statements\":[{\"quote\":\"Sab rates + GST extra, ex godown Tumkur road.\",\"basis\":\"excl\",\"rate_pct\":null,\"scope\":\"\",\"is_correction\":false},{\"quote\":\"boxes ke rate GST included hai (12%). Sirf sheet, tape, film aur strap pe GST extra\",\"basis\":\"incl\",\"rate_pct\":12,\"scope\":\"boxes (5ply and 3ply)\",\"is_correction\":true},{\"quote\":\"Sirf sheet, tape, film aur strap pe GST extra\",\"basis\":\"excl\",\"rate_pct\":null,\"scope\":\"sheet, tape, film and strap\",\"is_correction\":true}]},\"lines\":[{\"rfx_line_code\":\"CRT-5P-01\",\"match_confidence\":0.8,\"match_reason\":\"18x12x10 in is about 457x305x254 mm; BF 22 agrees\",\"vendor_description\":\"5ply boxes (BF 22 only) 18x12x10 inch\",\"price\":28.4,\"currency\":\"INR\",\"uom_text\":\"per pc\",\"tax_basis\":\"incl\",\"tax_rate_pct\":12,\"tax_source_quote\":\"boxes ke rate GST included hai (12%)\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L3\",\"quote\":\"18x12x10 inch - 28.4/- per pc\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"CRT-5P-02\",\"match_confidence\":0.8,\"match_reason\":\"16x12x8 in is about 406x305x203 mm; BF 22 agrees\",\"vendor_description\":\"5ply boxes (BF 22 only) 16x12x8 inch\",\"price\":24.1,\"currency\":\"INR\",\"uom_text\":\"per pc\",\"tax_basis\":\"incl\",\"tax_rate_pct\":12,\"tax_source_quote\":\"boxes ke rate GST included hai (12%)\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L4\",\"quote\":\"16x12x8 inch - 24.1/-\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"CRT-5P-03\",\"match_confidence\":0.8,\"match_reason\":\"20x14x12 in is about 508x356x305 mm; BF 22 agrees\",\"vendor_description\":\"5ply boxes (BF 22 only) 20x14x12 inch\",\"price\":37.6,\"currency\":\"INR\",\"uom_text\":\"per pc\",\"tax_basis\":\"incl\",\"tax_rate_pct\":12,\"tax_source_quote\":\"boxes ke rate GST included hai (12%)\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L5\",\"quote\":\"20x14x12 inch - 37.6/-\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"CRT-5P-05\",\"match_confidence\":0.8,\"match_reason\":\"14x10x6 in is about 356x254x152 mm; BF 22 agrees\",\"vendor_description\":\"5ply boxes (BF 22 only) 14x10x6 inch\",\"price\":16.2,\"currency\":\"INR\",\"uom_text\":\"per pc\",\"tax_basis\":\"incl\",\"tax_rate_pct\":12,\"tax_source_quote\":\"boxes ke rate GST included hai (12%)\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L6\",\"quote\":\"14x10x6 inch - 16.2/-\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"CRT-3P-01\",\"match_confidence\":0.8,\"match_reason\":\"12x8x6 in is about 305x203x152 mm vs 300x200x150\",\"vendor_description\":\"3ply boxes 12x8x6\",\"price\":6.3,\"currency\":\"INR\",\"uom_text\":\"each\",\"tax_basis\":\"incl\",\"tax_rate_pct\":12,\"tax_source_quote\":\"boxes ke rate GST included hai (12%)\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L8\",\"quote\":\"12x8x6 - 6.3 each\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Unit assumed inches; line does not say\"},{\"rfx_line_code\":\"CRT-3P-04\",\"match_confidence\":0.75,\"match_reason\":\"14x10x8 in is about 356x254x203 mm; closest 3 ply size\",\"vendor_description\":\"3ply boxes 14x10x8\",\"price\":9.5,\"currency\":\"INR\",\"uom_text\":\"each\",\"tax_basis\":\"incl\",\"tax_rate_pct\":12,\"tax_source_quote\":\"boxes ke rate GST included hai (12%)\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L9\",\"quote\":\"14x10x8 - 9.5 each\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Alternative CRT-3P-02 (350x250x200); both plausible\"},{\"rfx_line_code\":\"CRT-3P-03\",\"match_confidence\":0.8,\"match_reason\":\"10x8x4 in is about 254x203x102 mm vs 250x200x100\",\"vendor_description\":\"3ply boxes 10x8x4\",\"price\":4.8,\"currency\":\"INR\",\"uom_text\":\"each\",\"tax_basis\":\"incl\",\"tax_rate_pct\":12,\"tax_source_quote\":\"boxes ke rate GST included hai (12%)\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L10\",\"quote\":\"10x8x4 - 4.8 each\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"SHT-5P-01\",\"match_confidence\":0.95,\"match_reason\":\"5ply, BF22, 1100x1500 agree\",\"vendor_description\":\"5ply sheet BF22 1100x1500\",\"price\":44.5,\"currency\":\"INR\",\"uom_text\":\"per kg\",\"conditions\":[\"50 ton or above: 42.8 per kg\"],\"tax_basis\":\"excl\",\"tax_source_quote\":\"Sirf sheet, tape, film aur strap pe GST extra\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L11\",\"quote\":\"5ply sheet BF22 1100x1500 - 44.5 per kg, 50 ton ya upar ho to 42.8\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"TPE-BOPP-01\",\"match_confidence\":0.95,\"match_reason\":\"BOPP brown 48mm x 100 m agree\",\"vendor_description\":\"BOPP tape brown 48mm x 100 mtr\",\"price\":4500,\"currency\":\"INR\",\"uom_text\":\"per carton\",\"tax_basis\":\"excl\",\"tax_source_quote\":\"Sirf sheet, tape, film aur strap pe GST extra\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L12\",\"quote\":\"4500 per carton (1 carton = 100 rolls)\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"FLM-STR-01\",\"match_confidence\":0.85,\"match_reason\":\"Stretch film 23 mic; width not stated\",\"vendor_description\":\"Stretch film 23 mic\",\"price\":104,\"currency\":\"INR\",\"uom_text\":\"/kg\",\"conditions\":[\"Valid while stock lasts\"],\"tax_basis\":\"excl\",\"tax_source_quote\":\"Sirf sheet, tape, film aur strap pe GST extra\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L13\",\"quote\":\"Stretch film 23 mic - 104/kg (jab tak stock hai)\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"STP-PET-01\",\"match_confidence\":0.95,\"match_reason\":\"PET strap 15mm agrees\",\"vendor_description\":\"PET strap 15mm\",\"price\":126000,\"currency\":\"INR\",\"uom_text\":\"per ton\",\"tax_basis\":\"excl\",\"tax_source_quote\":\"Sirf sheet, tape, film aur strap pe GST extra\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L14\",\"quote\":\"PET strap 15mm - 1,26,000 per ton\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"PLT-WD-01\",\"match_confidence\":0.95,\"match_reason\":\"Heat treated pallet 1200x1000 agrees\",\"vendor_description\":\"Pallet 1200x1000 heat treated\",\"price\":690,\"currency\":\"INR\",\"uom_text\":\"pallet\",\"tax_basis\":\"excl\",\"tax_source_quote\":\"690 + GST\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L15\",\"quote\":\"Pallet 1200x1000 heat treated - 690 + GST\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Unit not stated; assumed per pallet\"},{\"rfx_line_code\":\"INS-EDG-01\",\"match_confidence\":0.85,\"match_reason\":\"Edge protector 50x50x4 agrees; unit per mtr\",\"vendor_description\":\"Edge protector 50x50x4\",\"price\":14,\"currency\":\"INR\",\"uom_text\":\"per mtr\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L16\",\"quote\":\"Edge protector 50x50x4 - 14 per mtr\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Tax basis not settled by correction; only the general 'GST extra' applies\"}],\"questionnaire\":[{\"question_code\":\"Q1\",\"answer_text\":\"ISO kal bhej dunga sir\",\"answer_value\":{\"has\":true},\"status\":\"partial\",\"basis\":\"inferred\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L20\",\"quote\":\"ISO kal bhej dunga sir\",\"read_confidence\":\"high\"}},{\"question_code\":\"Q6\",\"answer_text\":\"Delivery 7 din PO ke baad\",\"answer_value\":7,\"status\":\"answered\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L19\",\"quote\":\"Delivery 7 din PO ke baad\",\"read_confidence\":\"high\"}},{\"question_code\":\"Q8\",\"answer_text\":\"Payment 15 days\",\"answer_value\":15,\"status\":\"answered\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L19\",\"quote\":\"Payment 15 days\",\"read_confidence\":\"high\"}},{\"question_code\":\"Q2\",\"answer_text\":\"\",\"status\":\"unanswered\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L17\",\"quote\":\"Please also share ISO certificate and lab details.\",\"read_confidence\":\"high\"}}]}",
+   "stop_reason": "end_turn"
+  }
+ ]
+}

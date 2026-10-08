@@ -62,3 +62,9 @@ writeFileSync(
   JSON.stringify({ file: { filename, size_bytes: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex') }, captured_with: { prompt: process.env.CAPTURE_PROMPT ?? 'extract.v3', note: 'Raw model replies only. The vendor file itself is not stored.' }, usage: result.usage, global_notes: globalNotes, result_lines: result.lines.map((l) => ({ code: l.code, price: l.price, normalized_inr: l.normalized_inr, status: l.status, flags: l.flags, assumptions: l.assumptions, tax: l.tax ?? null, reason: l.reasons[0] ?? null })), result_review: result.review.filter((r) => r.kind.startsWith('tax')).map((r) => r.message), replies }, null, 1) + '\n',
 );
 console.log(`${filename}: ok=${result.ok} lines=${result.lines.length} calls=${result.usage.model_calls} cost Rs ${result.usage.cost_inr.toFixed(2)} global_notes=${globalNotes.length}`);
+if (process.env.CAPTURE_PRINT === '1') {
+  for (const l of result.lines) console.log(`${(l.code ?? '-').padEnd(10)} ${l.status.padEnd(12)} ${String(l.normalized_inr ?? '-').padEnd(8)} flags=[${l.flags.join(',')}] ${l.reasons.join(' ').slice(0, 150)}`);
+  console.log(`status counts ${JSON.stringify(result.status_counts)}`);
+  for (const r of result.review) console.log(`REVIEW ${r.kind} (${r.message.length} chars): ${r.message.slice(0, 220)}`);
+  console.log(`review items ${result.review.length}`);
+}
