@@ -228,3 +228,29 @@ describe('F4: a different board grade is Needs review with the vendor text and n
     expect(r.status).toBe('assumed');
   });
 });
+
+describe('K3: a grade note that names a ply applies only to lines of that ply', () => {
+  const rfx3 = '3 ply RSC carton 300x200x150 mm, BF 18, brown';
+  const rfx5 = '5 ply RSC carton 450x300x250 mm, BF 22, brown';
+  it('a note about 5 ply boxes never touches a 3 ply line', () => {
+    expect(gradeMismatch(rfx3, ['5ply boxes are BF 24 only'], [])).toBeNull();
+    expect(gradeMismatch(rfx3, ['5 ply cartons: BF 24 only'], [])).toBeNull();
+  });
+  it('the same note does apply to a 5 ply line that needs another grade', () => {
+    expect(gradeMismatch('5 ply RSC carton 450x300x250 mm, BF 25, brown', ['5ply boxes are BF 24 only'], [])?.vendor_grade).toBe(24);
+    expect(gradeMismatch(rfx5, ['5ply boxes are BF 22 only'], [])).toBeNull();
+  });
+  it('a note naming 3 ply does not touch a 5 ply line, and a note naming both plies applies to both', () => {
+    expect(gradeMismatch(rfx5, ['3-ply boxes are BF 20 only'], [])).toBeNull();
+    expect(gradeMismatch(rfx3, ['3 ply boxes are BF 20 only'], [])?.vendor_grade).toBe(20);
+    expect(gradeMismatch(rfx5, ['3 ply and 5 ply cartons are BF 20'], [])?.vendor_grade).toBe(20);
+  });
+  it('a note with no ply applies to cartons in general, and not to a sheet', () => {
+    expect(gradeMismatch(rfx3, ['Cartons are BF 20 only'], [])?.vendor_grade).toBe(20);
+    expect(gradeMismatch('5 ply corrugated sheet 1100x1500 mm, BF 25', ['Cartons are BF 20 only'], [])).toBeNull();
+  });
+  it('a ply mapped to its own grade still works', () => {
+    expect(gradeMismatch(rfx3, ['Carton rates are for BF 20 (3 ply) and BF 24 (5 ply) board.'], [])?.vendor_grade).toBe(20);
+    expect(gradeMismatch(rfx5, ['Carton rates are for BF 20 (3 ply) and BF 22 (5 ply) board.'], [])).toBeNull();
+  });
+});

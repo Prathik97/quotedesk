@@ -120,7 +120,12 @@ function gradesByPly(text: string): Record<number, number> {
   return out;
 }
 
-export type VendorGrade = { grade: number; by_ply: Record<number, number>; boards_only: boolean; note: string; surcharge: string | null };
+/** The plies a note names ("5ply boxes", "3 ply and 5 ply cartons", "5-ply"). */
+function pliesNamed(text: string): number[] {
+  return [...new Set([...text.matchAll(/(\d)\s*[- ]?ply\b/gi)].map((m) => Number(m[1])))];
+}
+
+export type VendorGrade = { grade: number; by_ply: Record<number, number>; boards_only: boolean; note: string; surcharge: string | null; /** Plies the note names without giving a grade for each. A note that names plies speaks only about them. */ named_plies: number[] };
 
 /** The base board grade a vendor says its prices are for, with the vendor's own surcharge text when it gives one. */
 export function vendorBaseGrade(notes: string[]): VendorGrade | null {
@@ -130,7 +135,7 @@ export function vendorBaseGrade(notes: string[]): VendorGrade | null {
     const isBase = BASE_WORDS.test(n) || (grades.length === 1 && !SURCHARGE_WORDS.test(n));
     if (!isBase) continue;
     const surcharge = SURCHARGE_WORDS.test(n) && grades.length > 1 && Object.keys(gradesByPly(n)).length === 0 ? n : withGrade.find((o) => o !== n && SURCHARGE_WORDS.test(o)) ?? null;
-    return { grade: grades[0] as number, by_ply: gradesByPly(n), boards_only: BOARD_ITEMS.test(n) && !/\b(sheets?|rolls?)\b/i.test(n), note: n, surcharge };
+    return { grade: grades[0] as number, by_ply: gradesByPly(n), named_plies: pliesNamed(n), boards_only: BOARD_ITEMS.test(n) && !/\b(sheets?|rolls?)\b/i.test(n), note: n, surcharge };
   }
   return null;
 }
@@ -152,7 +157,10 @@ export function gradeMismatch(rfxDescription: string, vendorNotes: string[], lin
   if (grade == null && quote) {
     const ply = Number(/\b(\d)\s*[- ]?ply\b/i.exec(rfxDescription)?.[1] ?? NaN);
     const inScope = !quote.boards_only || BOARD_ITEMS.test(rfxDescription);
-    if (inScope) grade = quote.by_ply[ply] ?? (Object.keys(quote.by_ply).length === 0 ? quote.grade : null);
+    // A note that names a ply ("5ply boxes are BF 22 only") applies to lines of that ply and no other. One with no ply
+    // applies to cartons in general.
+    const plyOk = Object.keys(quote.by_ply).length > 0 || quote.named_plies.length === 0 || quote.named_plies.includes(ply);
+    if (inScope && plyOk) grade = quote.by_ply[ply] ?? (Object.keys(quote.by_ply).length === 0 ? quote.grade : null);
   }
   if (grade == null || grade === rfx) return null;
   const base = own ?? quote;
