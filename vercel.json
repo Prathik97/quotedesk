@@ -5,9 +5,15 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/*.ts": { "maxDuration": 60, "includeFiles": "prompts/**" }
+    "api/*.ts": {
+      "maxDuration": 60,
+      "includeFiles": "{prompts/**,.build/**}"
+    }
   },
   "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
   ]
 }

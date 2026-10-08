@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
-import handler from '../api/[[...path]].js';
+import handler from '../.build/handler.mjs';
 import { callHandler } from '../dev/adapt.js';
 import { loadEnvLocal, requireEnv } from './envfile.js';
 

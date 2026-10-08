@@ -12,3 +12,4 @@ Read REQUIREMENTS.md fully before any work. Follow Section 0 of that file.
 8. Use Node 22 and a Python virtual environment in .venv. Do not use brew install.
 9. Ask before installing any global tool or touching files outside this folder.
 10. No em dashes or en dashes in copy, docs, or comments.
+11. Before every push, run `npm run check:function` (on Node 22). It builds, loads the built API function in plain Node and must pass. Never push with it failing.

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && npm run build:function && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -22,7 +22,9 @@
     "recompute": "tsx scripts/recompute.ts",
     "check:bundle": "tsx scripts/check-bundle.ts",
     "serve:prod": "tsx scripts/serve-prod.ts",
-    "demo:reset": "tsx scripts/reset-demo.ts"
+    "demo:reset": "tsx scripts/reset-demo.ts",
+    "build:function": "node scripts/build-function.mjs",
+    "check:function": "tsx scripts/check-function.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
@@ -51,6 +53,7 @@
     "@vercel/node": "^22.0.0",
     "@vitejs/plugin-react": "^6.1.2",
     "dotenv": "^18.0.6",
+    "esbuild": "^0.28.2",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

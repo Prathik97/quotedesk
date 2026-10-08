@@ -10,7 +10,7 @@ export function apiShim(): Plugin {
     configureServer(server: ViteDevServer) {
       server.middlewares.use(async (req, res, next) => {
         if (!req.url?.startsWith('/api')) return next();
-        const file = path.join(server.config.root, 'api', '[[...path]].ts');
+        const file = path.join(server.config.root, 'api', '_lib', 'router.ts');
         try {
           const mod = await server.ssrLoadModule(file);
           await callHandler(mod.default, req, res);

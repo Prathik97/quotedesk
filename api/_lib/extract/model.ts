@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type Anthropic from '@anthropic-ai/sdk';
 import type { z } from 'zod';
 import {
@@ -21,13 +22,20 @@ import { fenceVendorText, type Prepared } from './prepare.js';
 
 export type Prompt = { text: string; version: string };
 
+/** The prompts folder: next to the working directory (Vercel: /var/task, local: the repo), else next to the bundle. */
+export function promptsDir(): string {
+  const fromCwd = path.resolve(process.cwd(), 'prompts');
+  if (fs.existsSync(fromCwd)) return fromCwd;
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'prompts');
+}
+
 const promptCache = new Map<string, Prompt>();
 
 /** prompts/<name>.md, versioned by file name plus a content hash so edits invalidate the dev cache. */
 export function loadPrompt(name: string): Prompt {
   const hit = promptCache.get(name);
   if (hit) return hit;
-  const text = fs.readFileSync(path.resolve(process.cwd(), 'prompts', `${name}.md`), 'utf8');
+  const text = fs.readFileSync(path.join(promptsDir(), `${name}.md`), 'utf8');
   const p = { text, version: `${name}@${createHash('sha256').update(text).digest('hex').slice(0, 8)}` };
   promptCache.set(name, p);
   return p;

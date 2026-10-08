@@ -10,14 +10,14 @@ This file lists the exact settings and the environment variable names. It never 
 | Framework preset | Vite |
 | Root directory | repository root (leave blank) |
 | Install command | `npm ci` |
-| Build command | `npm run build` (runs `tsc --noEmit`, then `vite build`) |
+| Build command | `npm run build` (runs `tsc --noEmit`, then `npm run build:function`, then `vite build`) |
 | Output directory | `dist` |
 | Node.js version | 22.x (Project Settings, General, Node.js Version). `package.json` also pins `22.x` and `.nvmrc` says 22 |
 
 `vercel.json` already sets the framework, commands and output directory, so the dashboard values only need to agree with it. It also holds the three things that are easy to miss:
 
-- **One API function.** `api/[[...path]].ts` serves every `/api/<name>` route. Routes live in `api/_lib/routes/` (a folder starting with an underscore is never deployed as its own function). This keeps the project under the Hobby limit of 12 functions.
-- **`maxDuration` 60** for that function, and **`includeFiles: prompts/**`** so the versioned prompt files are shipped with it (the code reads them from disk at run time).
+- **One API function, bundled.** `api/[[...path]].ts` serves every `/api/<name>` route, but it is a two line file that re-exports `.build/handler.mjs`. That file is written at build time by `scripts/build-function.mjs` (esbuild): it bundles `api/_lib` (router and routes), `engine` and the shared `src/lib` schemas and types into one ESM file. Packages in `dependencies` stay external and ship from `node_modules`. Vercel therefore never resolves our modules file by file, which is what broke the first deploy (extensionless imports such as `./certainty` fail in strict Node ESM). `.build/` is generated and gitignored. Routes live in `api/_lib/routes/` (a folder starting with an underscore is never deployed as its own function), which keeps the project under the Hobby limit of 12 functions.
+- **`maxDuration` 60** for that function, and **`includeFiles: {prompts/**,.build/**}`** so the versioned prompt files (read from disk at run time) and the bundle are shipped with it.
 - **SPA fallback rewrite.** Every path that is not `/api/...` and not a real file in `dist` returns `index.html`, so a refresh on `/eval` or `/analyst` works.
 
 ## 2. Environment variables
@@ -67,7 +67,8 @@ The deployed app uses the same Supabase project you already migrated and seeded.
 Replace `<app>` with your production URL.
 
 ```bash
-curl -s https://<app>/api/health          # ok true, config complete, database ok
+curl -s https://<app>/api/health          # ok true. Touches nothing else: if this fails the function itself does not load
+curl -s https://<app>/api/ready           # 200 and layers all ok. On 503, "failed" names the layer (config, prompts, database, readonly_database); missing_settings lists names only
 curl -s https://<app>/api/usage           # calls today, cost today, capped false
 curl -s -o /dev/null -w "%{http_code}\n" https://<app>/eval    # 200 (the SPA fallback)
 ```
@@ -88,7 +89,15 @@ curl -s -X POST https://<app>/api/reset-demo -H "x-admin-token: $DEMO_ADMIN_TOKE
 
 Without the token, the button and the endpoint allow 3 resets per hour per address and 20 per hour overall.
 
-## 7. Rehearse the production build on your machine
+## 7. Before every push
+
+```bash
+npm run check:function    # Node 22. Builds, loads .build/handler.mjs in plain Node, calls health, ready, usage, compare
+```
+
+It reads `.env.local`, never prints a value, forces both spend caps to 0 for the child process, and makes no model call. Any route that does not return 200 fails the check and names the failing layer.
+
+## 8. Rehearse the production build on your machine
 
 ```bash
 npm run build
@@ -96,4 +105,4 @@ npm run check:bundle                                   # PASS or FAIL per check,
 DAILY_SPEND_CAP_INR=0 PER_IP_HOURLY_CALLS=0 npm run serve:prod   # http://localhost:4173, caps at 0
 ```
 
-`serve:prod` serves `dist` with the same SPA fallback as `vercel.json` and runs the same single API function. It is not Vercel itself, so the first real deploy is still the final test of the function bundling.
+`serve:prod` serves `dist` with the same SPA fallback as `vercel.json` and runs the same built single API function (`.build/handler.mjs`). It is not Vercel itself, so the first real deploy is still the final test of the function bundling.
