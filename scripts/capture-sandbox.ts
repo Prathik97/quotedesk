@@ -59,6 +59,6 @@ let globalNotes: string[] = [];
 try { globalNotes = (JSON.parse(extractReply?.text ?? '{}').document?.global_notes ?? []) as string[]; } catch { /* the notes stay empty when the reply is not plain JSON */ }
 writeFileSync(
   new URL(`../eval/fixtures/${name}.raw.json`, import.meta.url),
-  JSON.stringify({ file: { filename, size_bytes: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex') }, captured_with: { prompt: 'extract.v3', note: 'Raw model replies only. The vendor file itself is not stored.' }, usage: result.usage, global_notes: globalNotes, replies }, null, 1) + '\n',
+  JSON.stringify({ file: { filename, size_bytes: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex') }, captured_with: { prompt: process.env.CAPTURE_PROMPT ?? 'extract.v3', note: 'Raw model replies only. The vendor file itself is not stored.' }, usage: result.usage, global_notes: globalNotes, result_lines: result.lines.map((l) => ({ code: l.code, price: l.price, normalized_inr: l.normalized_inr, status: l.status, flags: l.flags, assumptions: l.assumptions, tax: l.tax ?? null, reason: l.reasons[0] ?? null })), result_review: result.review.filter((r) => r.kind.startsWith('tax')).map((r) => r.message), replies }, null, 1) + '\n',
 );
 console.log(`${filename}: ok=${result.ok} lines=${result.lines.length} calls=${result.usage.model_calls} cost Rs ${result.usage.cost_inr.toFixed(2)} global_notes=${globalNotes.length}`);
