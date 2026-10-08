@@ -6,10 +6,19 @@ import type { CellStatus } from '../../engine/certainty';
 import type { LineOverrides } from '../../engine/recompute';
 import type { Assumptions } from '../../engine/types';
 import { api, ApiFailure } from './api';
-import type { ActionResponse, AssumptionUpdateResponse, CompareResponse, ReviewAction } from './api-types';
+import { SESSION_KEY } from './analyst';
+import type { ActionResponse, AssumptionUpdateResponse, CompareResponse, ReviewAction, UsageSummary } from './api-types';
 import { deriveAll, diffCells, type CellChange, type Patches } from './derive';
 
-export type Page = 'rfx' | 'inbox' | 'comparison' | 'analyst' | 'decision';
+export type Page = 'rfx' | 'inbox' | 'comparison' | 'analyst' | 'decision' | 'eval';
+
+/** Each page has a real address, so a refresh or a shared link opens the same page (vercel.json rewrites them to index.html). */
+export const PAGE_PATH: Record<Page, string> = { rfx: '/rfx', inbox: '/inbox', comparison: '/comparison', analyst: '/analyst', decision: '/decision', eval: '/eval' };
+
+export function pageFromPath(pathname: string): Page {
+  const clean = pathname.replace(/\/+$/, '') || '/';
+  return (Object.keys(PAGE_PATH) as Page[]).find((p) => PAGE_PATH[p] === clean) ?? 'comparison';
+}
 export type Tab = 'grid' | 'review' | 'questionnaire' | 'attachments' | 'assumptions' | 'source';
 export type Toggles = { onlyCleared: boolean; includeDiscounts: boolean; annualValue: boolean; onlyAttention: boolean };
 export type Selection =
@@ -41,6 +50,12 @@ type Ctx = {
   openSource: (t: SourceTarget) => void;
   setAssumption: (key: 'usd_inr' | 'gst_pct', value: number | null) => Promise<void>;
   act: (a: ReviewAction) => Promise<boolean>;
+  usage: UsageSummary | null;
+  refreshUsage: () => Promise<void>;
+  /** Restores the seeded demo state for everyone. Returns true when it worked. */
+  resetDemo: () => Promise<boolean>;
+  /** Changes each time the demo is reset, so pages holding local state can start clean. */
+  resetCount: number;
   change: Change | null;
   clearChange: () => void;
   toast: Toast | null;
@@ -64,7 +79,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState(0);
-  const [page, setPage] = useState<Page>('comparison');
+  const [page, setPageState] = useState<Page>(() => pageFromPath(window.location.pathname));
+  const [usage, setUsage] = useState<UsageSummary | null>(null);
+  const [resetCount, setResetCount] = useState(0);
   const [tab, setTab] = useState<Tab>('grid');
   const [toggles, setToggles] = useState<Toggles>({ onlyCleared: false, includeDiscounts: false, annualValue: false, onlyAttention: false });
   const [statusFilter, setStatusFilter] = useState<CellStatus | null>(null);
@@ -78,6 +95,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
   const chain = useRef<Promise<unknown>>(Promise.resolve());
   const toastTimer = useRef<number | undefined>(undefined);
+
+  const setPage = useCallback((p: Page) => {
+    setPageState(p);
+    if (window.location.pathname !== PAGE_PATH[p]) window.history.pushState(null, '', PAGE_PATH[p]);
+  }, []);
+
+  useEffect(() => {
+    const onPop = () => setPageState(pageFromPath(window.location.pathname));
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const refreshUsage = useCallback(async () => {
+    try {
+      setUsage(await api<UsageSummary>('usage'));
+    } catch {
+      setUsage(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshUsage();
+    const t = window.setInterval(() => void refreshUsage(), 60_000);
+    return () => window.clearInterval(t);
+  }, [refreshUsage]);
 
   const notify = useCallback((kind: Toast['kind'], text: string) => {
     window.clearTimeout(toastTimer.current);
@@ -224,6 +266,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [server, data, effective, patches, enqueue, reload, flash, notify],
   );
 
+  const resetDemo = useCallback(async (): Promise<boolean> => {
+    setBusy((b) => b + 1);
+    try {
+      await api('reset-demo', { method: 'POST' });
+      try {
+        localStorage.removeItem(SESSION_KEY);
+      } catch {
+        // storage unavailable: nothing to clear
+      }
+      setPatches({});
+      setLocalA({});
+      setChange(null);
+      setSelection(null);
+      await reload();
+      setResetCount((n) => n + 1);
+      notify('success', 'The demo is back to its seeded state. Corrections, assumption changes and chats are cleared.');
+      return true;
+    } catch (e) {
+      notify('error', `The demo was not reset. ${(e as ApiFailure).message}`);
+      return false;
+    } finally {
+      setBusy((b) => b - 1);
+    }
+  }, [reload, notify]);
+
   const value: Ctx = {
     data,
     loading,
@@ -251,6 +318,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     setAssumption,
     act,
+    usage,
+    refreshUsage,
+    resetDemo,
+    resetCount,
     change,
     clearChange: () => setChange(null),
     toast,

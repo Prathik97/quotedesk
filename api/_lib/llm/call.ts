@@ -28,6 +28,15 @@ export class BudgetExceededError extends Error {
   }
 }
 
+/** The daily spend cap (DAILY_SPEND_CAP_INR) would be passed. Treated like the session cap everywhere. */
+export class DailyCapError extends BudgetExceededError {
+  constructor(spent: number, next: number, cap: number) {
+    super(spent, next, cap);
+    this.name = 'DailyCapError';
+    this.message = `The daily spend cap of Rs ${cap} has been reached (Rs ${spent.toFixed(2)} spent today). No live model call was made.`;
+  }
+}
+
 export type CallContext = {
   stage: 'classify' | 'extract' | 'repair' | 'certificate' | 'ping';
   route: string;
@@ -51,7 +60,13 @@ export type CallResult = {
   cached_at?: string;
 };
 
-export type CallDeps = { client: LlmClient; store: LlmStore; log?: (line: string) => void };
+export type CallDeps = {
+  client: LlmClient;
+  store: LlmStore;
+  log?: (line: string) => void;
+  /** When set, a live call is refused if today's spend across all sessions would pass it. */
+  dailyCapInr?: number;
+};
 
 // Reservations for calls in flight, so parallel workers cannot jointly pass the cap.
 const inFlight = new Map<string, number>();
@@ -84,6 +99,10 @@ export async function callModel(req: LlmRequest, ctx: CallContext, deps: CallDep
   const worst = worstCaseInr(req.model, ctx.estimated_input_tokens, req.max_tokens);
   const spent = await deps.store.sessionSpendInr(ctx.session_id);
   const reserved = [...inFlight.values()].reduce((s, v) => s + v, 0);
+  if (deps.dailyCapInr !== undefined) {
+    const today = await deps.store.daySpendInr();
+    if (today + reserved + worst > deps.dailyCapInr) throw new DailyCapError(today + reserved, worst, deps.dailyCapInr);
+  }
   if (spent + reserved + worst > cap) throw new BudgetExceededError(spent + reserved, worst, cap);
 
   const token = `${key}:${Math.random()}`;

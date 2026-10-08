@@ -43,3 +43,15 @@ Real email sending and receiving, authentication and multi tenancy, vendor porta
 - **Held out questions.** The eight test questions were also the ones I tuned the prompt against, so they are not a held out test. The report says so.
 - **Streaming resume.** If the connection drops mid answer the page says so and the user asks again; the partial text is not recovered.
 - **A visual regression pass of the chat on narrow screens.** Desktop first, as the brief allows.
+
+## Cut or deferred in the Phase 8 deployment slice (2026-10-08)
+- **Limits on writes that do not spend money.** Review actions, FX and GST edits and recompute are not rate limited. They cost database time, not rupees, and Reset demo undoes them. A determined visitor could still slow the demo for everyone.
+- **Counting model calls per IP.** The hourly limit counts requests to model routes; one analyst turn can make several model calls. The daily cap bounds the money.
+- **An exact cap.** Two requests admitted at the same moment near the cap can overshoot it by their worst cases together. The Rs 12 door margin keeps this small.
+- **Automatic switch to stored mode on an API outage.** A failed model call shows a friendly error and nothing stored is touched (D59), but only a cap, not an outage, switches the page to the stored runs view.
+- **Upload route and signed upload URLs.** No route accepts a file yet; the validator is ready (D61). The route comes with the inbox in phase 6.
+- **Live eval page.** It shows the committed report (D64), not the latest `eval_runs` row.
+- **Stable order after Reset demo** for open items with equal value at stake.
+- **Cleaning up visitors' chats before Reset.** Chats from visitors stay in the database until someone uses Reset demo.
+- **Anything proven on real Vercel.** Function bundling, the bracketed catch all file, `includeFiles`, streaming on the live runtime and the TypeScript 7 build of the function are verified only on the first deploy (D62).
+- **README setup and architecture guide, production seed run and the Loom walkthrough.** Still phase 8; `DEPLOY.md` covers deploying.

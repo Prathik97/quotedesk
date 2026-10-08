@@ -10,10 +10,13 @@ const EnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   SUPABASE_DB_URL: z.string().min(1),
   SUPABASE_DB_READONLY_URL: z.string().optional(),
-  DAILY_SPEND_CAP_INR: z.coerce.number().positive(),
-  PER_IP_HOURLY_CALLS: z.coerce.number().int().positive(),
+  // 0 is allowed: it means no live model calls at all (used to test the stored results fallback).
+  DAILY_SPEND_CAP_INR: z.coerce.number().min(0),
+  PER_IP_HOURLY_CALLS: z.coerce.number().int().min(0),
   DEFAULT_USD_INR: z.coerce.number().positive(),
   DEFAULT_GST_PCT: z.coerce.number().min(0).max(100),
+  DEMO_ADMIN_TOKEN: z.string().optional(),
+  IP_HASH_SALT: z.string().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

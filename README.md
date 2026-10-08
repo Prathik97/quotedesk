@@ -2,7 +2,7 @@
 
 Turns five messy vendor replies (Excel, PDF, Word, a phone photo, an email) into one normalized, evidence backed comparison, then lets a buyer interrogate it in plain language all the way to an award. The model reads documents; deterministic code does every calculation.
 
-Status: phases 1 to 4 of 8 (dataset, extraction and evaluation, normalization engine, comparison workspace with evidence and review). See `REQUIREMENTS.md`, `DECISIONS.md`, `LEFT_OUT.md`.
+Status: phases 1 to 5 done (dataset, extraction and evaluation, normalization engine, comparison workspace, analyst), plus the deployment readiness slice of phase 8. See `DEPLOY.md` to deploy. See `REQUIREMENTS.md`, `DECISIONS.md`, `LEFT_OUT.md`.
 
 ## Setup
 Node 22, Python 3.
@@ -36,3 +36,11 @@ npm run dev          # grid, evidence drawer, review queue at http://localhost:5
 npm run recompute    # deterministic recompute of every stored line, no model calls (prints 0 changed when stored results match the engine)
 ```
 Everything in the app reads stored results from the database. Screenshots are in `docs/screenshots`.
+
+## Public deployment (phase 8 slice)
+```bash
+npm run build && npm run check:bundle        # no secret in the client bundle: PASS or FAIL per check
+DAILY_SPEND_CAP_INR=0 PER_IP_HOURLY_CALLS=0 npm run serve:prod   # production build on :4173 with live calls switched off
+npm run demo:reset                            # restore the seeded demo state, no model call
+```
+Spend caps, the per IP limit, Reset demo and the Vercel settings are described in `DEPLOY.md`.

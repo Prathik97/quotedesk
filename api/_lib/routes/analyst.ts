@@ -1,9 +1,11 @@
 // POST /api/analyst { session_id?, message }  streams the turn as newline delimited JSON events.
 // GET  /api/analyst?session_id=X              returns the saved conversation so a reload restores it.
+// GET  /api/analyst?stored=1                  lists the saved live runs shown when the spend cap is reached.
 import { z } from 'zod';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { env } from '../env.js';
 import { db, roDb } from '../db.js';
+import { admitModelCall, CAPPED_LABEL } from '../guard.js';
 import { ApiError, log, route } from '../http.js';
 import { runTurn, TurnCapError, type AnalystEvent, type HistoryMessage } from '../analyst/agent.js';
 import { realAgentClient } from '../analyst/agentClient.js';
@@ -20,6 +22,7 @@ const Body = z.object({ session_id: z.string().uuid().optional(), message: z.str
 export default route(['GET', 'POST'], async (req: VercelRequest, res: VercelResponse) => {
   const pool = db();
   if (req.method === 'GET') {
+    if (req.query.stored) return { label: CAPPED_LABEL, sessions: await storedSessions(pool) };
     const id = z.string().uuid().safeParse(req.query.session_id);
     if (!id.success) return { session_id: null, messages: [], results: [] };
     const [messages, results] = await Promise.all([loadMessages(pool, id.data), loadResults(pool, id.data)]);
@@ -28,6 +31,9 @@ export default route(['GET', 'POST'], async (req: VercelRequest, res: VercelResp
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) throw new ApiError(400, 'bad_request', parsed.error.issues[0]?.message ?? 'Send { message } as JSON.');
   const { message } = parsed.data;
+  // Before any work: the per IP limit and the spend caps. A refusal costs nothing.
+  const gate = await admitModelCall(pool, req, 'analyst');
+  if (!gate.ok) throw new ApiError(429, 'capped', gate.message, { reason: gate.reason, label: CAPPED_LABEL, stored: true });
   let sessionId = parsed.data.session_id ?? null;
   let state = sessionId ? await loadState(pool, sessionId) : null;
   if (!sessionId || !state) {
@@ -63,7 +69,7 @@ export default route(['GET', 'POST'], async (req: VercelRequest, res: VercelResp
     const exportsOut: ExportChip[] = [];
     const out = await runTurn(
       {
-        client: realAgentClient(), store: pgStore(pool), model: env().MODEL_ANALYST, budgetSession: budgetSessionId(), chatSession,
+        client: realAgentClient(), store: pgStore(pool), model: env().MODEL_ANALYST, budgetSession: budgetSessionId(), dailyCapInr: env().DAILY_SPEND_CAP_INR, chatSession,
         system: sys.blocks, tools: toolDefinitions() as never, contextText: sys.contextText,
         runTool: (name, input) => executeTool(ctx, name, input), describeStep: describeStepLabel, describeScenario: (s) => describeState(s), getState: () => ctx.state,
       },
@@ -94,4 +100,19 @@ function assistantText(final: unknown, fallback: string): string {
   const f = final as { body?: string; callout?: string | null } | null;
   if (!f?.body) return fallback;
   return f.callout ? `${f.body}\n[Data note: ${f.callout}]` : f.body;
+}
+
+/** One saved live run per distinct first question (the latest that finished with an answer), oldest first. */
+async function storedSessions(pool: ReturnType<typeof db>): Promise<{ session_id: string; question: string; created_at: string }[]> {
+  const r = await pool.query<{ id: string; q: string; created_at: Date }>(
+    `select id, q, created_at from (
+       select distinct on (q) id, q, created_at from (
+         select s.id, s.created_at,
+                (select content->>'text' from chat_messages m where m.session_id = s.id and m.role = 'user' order by m.created_at limit 1) as q,
+                exists (select 1 from chat_messages m where m.session_id = s.id and m.role = 'assistant' and jsonb_typeof(m.content->'final') = 'object') as answered
+         from chat_sessions s where s.is_saved_demo and s.kind = 'analyst'
+       ) t where answered and q is not null order by q, created_at desc
+     ) d order by created_at limit 20`,
+  );
+  return r.rows.map((x) => ({ session_id: x.id, question: x.q, created_at: x.created_at.toISOString() }));
 }

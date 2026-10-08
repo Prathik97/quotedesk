@@ -22,6 +22,8 @@ export interface LlmStore {
   putCache(key: string, meta: { stage: string; model: string; prompt_version: string; document_sha256: string }, text: string, usage: TokenUsage): Promise<void>;
   logUsage(row: UsageRow): Promise<void>;
   sessionSpendInr(sessionId: string): Promise<number>;
+  /** Live (non cache) spend since midnight in India, across every session. */
+  daySpendInr(): Promise<number>;
 }
 
 export function pgStore(pool: pg.Pool): LlmStore {
@@ -58,6 +60,13 @@ export function pgStore(pool: pg.Pool): LlmStore {
       );
       return Number(r.rows[0]?.s ?? 0);
     },
+    async daySpendInr() {
+      const r = await pool.query<{ s: string | null }>(
+        `select sum(est_cost_inr) as s from usage_log
+         where not cache_hit and created_at >= (date_trunc('day', now() at time zone 'Asia/Kolkata') at time zone 'Asia/Kolkata')`,
+      );
+      return Number(r.rows[0]?.s ?? 0);
+    },
   };
 }
 
@@ -79,6 +88,9 @@ export function memoryStore(): LlmStore & { usage: UsageRow[]; cache: Map<string
     },
     async sessionSpendInr(sessionId) {
       return usage.filter((u) => u.session_id === sessionId && !u.cache_hit).reduce((s, u) => s + u.est_cost_inr, 0);
+    },
+    async daySpendInr() {
+      return usage.filter((u) => !u.cache_hit).reduce((s, u) => s + u.est_cost_inr, 0);
     },
   };
 }

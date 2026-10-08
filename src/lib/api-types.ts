@@ -359,3 +359,5 @@ export type VendorDetail = {
 };
 
 export type AssumptionUpdateResponse = { ok: true; key: string; old: number; value: number; set_by: 'system' | 'buyer'; recompute: RecomputeSummary };
+
+export type { UsageSummary } from '../../api/_lib/guard';

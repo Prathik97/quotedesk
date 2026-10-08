@@ -4,7 +4,7 @@
 // Cost control, in order: a per turn cap, then the session budget guard shared with extraction.
 import type Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
-import { BudgetExceededError, sessionCapInr } from '../llm/call.js';
+import { BudgetExceededError, DailyCapError, sessionCapInr } from '../llm/call.js';
 import { costInr, expectedInr, worstCaseInr, type TokenUsage } from '../llm/pricing.js';
 import type { LlmStore } from '../llm/store.js';
 import { estimateTextTokens } from '../llm/tokens.js';
@@ -60,6 +60,8 @@ export type TurnDeps = {
   store: LlmStore;
   model: string;
   budgetSession: string;
+  /** When set, a model call is refused if today's spend across all sessions would pass it. */
+  dailyCapInr?: number;
   chatSession: string;
   system: Anthropic.TextBlockParam[];
   tools: Anthropic.Tool[];
@@ -174,6 +176,10 @@ export async function runTurn(deps: TurnDeps, input: TurnInput, emit: (e: Analys
     const spent = await deps.store.sessionSpendInr(deps.budgetSession);
     const cap = sessionCapInr();
     if (spent + sessionWorst > cap) throw new BudgetExceededError(spent, sessionWorst, cap);
+    if (deps.dailyCapInr !== undefined) {
+      const today = await deps.store.daySpendInr();
+      if (today + sessionWorst > deps.dailyCapInr) throw new DailyCapError(today, sessionWorst, deps.dailyCapInr);
+    }
     // After the first call the static prefix is cached, so the realistic worst case is the base input rate.
     const turnWorst = calls === 0 ? sessionWorst : expectedInr(deps.model, est, MAX_TOKENS);
     if (turnCost + turnWorst > PER_TURN_CAP_INR) throw new TurnCapError(turnCost, turnWorst);

@@ -52,8 +52,10 @@ export function applyEvent(t: Turn, e: AnalystEvent): Turn {
   }
 }
 
-/** Streams one turn. Calls onEvent for every event; resolves when the stream ends. */
-export async function streamTurn(sessionId: string | null, message: string, onEvent: (e: AnalystEvent) => void, signal?: AbortSignal): Promise<void> {
+export type Capped = { reason: string; message: string; label: string };
+
+/** Streams one turn. Resolves with the cap details if the server refused the turn because of a cap, otherwise with null. */
+export async function streamTurn(sessionId: string | null, message: string, onEvent: (e: AnalystEvent) => void, signal?: AbortSignal): Promise<Capped | null> {
   const res = await fetch('/api/analyst', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -63,13 +65,14 @@ export async function streamTurn(sessionId: string | null, message: string, onEv
   if (!res.ok || !res.body) {
     let msg = 'The analyst could not be reached. Check that the server is running, then try again.';
     try {
-      const j = (await res.json()) as { message?: string };
+      const j = (await res.json()) as { error?: string; message?: string; reason?: string; label?: string };
       if (j.message) msg = j.message;
+      if (res.status === 429 && j.error === 'capped') return { reason: j.reason ?? 'daily_cap', message: msg, label: j.label ?? 'Showing stored results from an earlier live run' };
     } catch {
       // keep the generic message
     }
     onEvent({ type: 'error', message: msg });
-    return;
+    return null;
   }
   const reader = res.body.getReader();
   const dec = new TextDecoder();
@@ -90,6 +93,7 @@ export async function streamTurn(sessionId: string | null, message: string, onEv
       }
     }
   }
+  return null;
 }
 
 export function formatCell(type: string, v: unknown): string {

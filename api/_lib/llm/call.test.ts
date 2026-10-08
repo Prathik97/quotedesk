@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BudgetExceededError, callModel, type CallContext } from './call';
+import { BudgetExceededError, callModel, DailyCapError, type CallContext } from './call';
 import { realClient, type LlmClient, type LlmRequest } from './client';
 import { memoryStore } from './store';
 
@@ -107,5 +107,33 @@ describe('callModel', () => {
     release();
     await first;
     vi.unstubAllEnvs();
+  });
+  it('refuses every live call when the daily cap is 0, before calling', async () => {
+    const client = fakeClient();
+    const store = memoryStore();
+    await expect(callModel(req, ctx(), { client, store, dailyCapInr: 0 })).rejects.toBeInstanceOf(DailyCapError);
+    expect(client.calls).toBe(0);
+    expect(store.usage).toHaveLength(0);
+  });
+
+  it('counts the daily cap across all sessions, and says no live call was made', async () => {
+    const client = fakeClient();
+    const store = memoryStore();
+    store.usage.push({ route: 'api:analyst', stage: 'analyst', model: 'm', usage, est_cost_inr: 90, session_id: 'someone-else', run_id: null, document_id: null, cache_hit: false });
+    const err = await callModel(req, ctx(), { client, store, dailyCapInr: 91 }).catch((e) => e);
+    expect(err).toBeInstanceOf(DailyCapError);
+    expect(err).toBeInstanceOf(BudgetExceededError);
+    expect(String(err.message)).toMatch(/daily spend cap of Rs 91/);
+    expect(client.calls).toBe(0);
+    await expect(callModel(req, ctx(), { client, store, dailyCapInr: 500 })).resolves.toMatchObject({ cache_hit: false });
+  });
+
+  it('still serves a stored response when the daily cap is reached, because a stored response costs nothing', async () => {
+    const client = fakeClient();
+    const store = memoryStore();
+    await callModel(req, ctx(), { client, store });
+    const again = await callModel(req, ctx(), { client, store, dailyCapInr: 0 });
+    expect(again.cache_hit).toBe(true);
+    expect(client.calls).toBe(1);
   });
 });

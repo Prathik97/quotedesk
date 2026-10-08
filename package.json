@@ -19,7 +19,10 @@
     "eval": "tsx eval/run.ts",
     "api:ping": "tsx scripts/ping.ts",
     "debug:cache": "tsx scripts/debug-cache.ts",
-    "recompute": "tsx scripts/recompute.ts"
+    "recompute": "tsx scripts/recompute.ts",
+    "check:bundle": "tsx scripts/check-bundle.ts",
+    "serve:prod": "tsx scripts/serve-prod.ts",
+    "demo:reset": "tsx scripts/reset-demo.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

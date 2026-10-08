@@ -6,6 +6,8 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly code: string,
     message: string,
+    /** Extra fields for the JSON body, such as { reason } on a cap response. Never a stack or a secret. */
+    public readonly extra: Record<string, unknown> = {},
   ) {
     super(message);
   }
@@ -41,6 +43,7 @@ export function route(methods: string[], handler: Handler) {
       });
       if (!res.headersSent) {
         res.status(e?.status ?? 500).json({
+          ...(e?.extra ?? {}),
           error: e?.code ?? 'internal',
           message: e?.message ?? 'Something went wrong on the server. Try again, and if it repeats, reset the demo.',
           requestId,

@@ -4,7 +4,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type pg from 'pg';
 import type { Assumptions } from '../../../engine/types.js';
-import { BudgetExceededError, type CallDeps } from '../llm/call.js';
+import { BudgetExceededError, DailyCapError, type CallDeps } from '../llm/call.js';
 import { certificateFacts, classify, extract, loadPrompt, type RfxContext, type StageOptions } from './model.js';
 import { clearDocument, persistCertificate, persistExtraction, persistObservations, type QuestionRow, type RfxLineRow } from './persist.js';
 import { prepare, prepareMessageBody, type Prepared } from './prepare.js';
@@ -134,11 +134,19 @@ export async function processDocument(id: string, o: ProcessOptions): Promise<Pr
     tally(cls.calls);
     if (!cls.ok) return await fail(`Classification failed: ${cls.error}`);
     res.kind = cls.data.kind;
-    await o.pool.query(`update documents set kind = $2, kind_confidence = $3, status = 'classified', error = null where id = $1`, [id, cls.data.kind, cls.data.confidence]);
+
+    // Every model call comes first. Nothing stored is touched until they have all returned, so a
+    // spend cap, an outage or a timeout in the middle leaves the earlier stored results as they were.
+    const x = EXTRACTABLE.has(cls.data.kind) ? await extract(prep, meta, ctx, stage) : null;
+    if (x) tally(x.calls);
+    const f = !x && FACTS.has(cls.data.kind) ? await certificateFacts(prep, meta, stage) : null;
+    if (f) tally(f.calls);
+    if (f && !f.ok) return await fail(`Certificate read failed: ${f.error}`);
 
     const c = await o.pool.connect();
     try {
       await c.query('begin');
+      await c.query(`update documents set kind = $2, kind_confidence = $3, status = 'classified', error = null where id = $1`, [id, cls.data.kind, cls.data.confidence]);
       await clearDocument(c, id);
       await persistObservations(c, { id, vendor_id: doc.vendor_id, filename: doc.filename, sha256: doc.sha256 }, prep);
       if (cls.data.confidence < 0.6) {
@@ -152,9 +160,7 @@ export async function processDocument(id: string, o: ProcessOptions): Promise<Pr
       c.release();
     }
 
-    if (EXTRACTABLE.has(cls.data.kind)) {
-      const x = await extract(prep, meta, ctx, stage);
-      tally(x.calls);
+    if (x) {
       const p = loadPrompt('extract.v3');
       if (!x.ok) {
         await o.pool.query(`insert into extractions (document_id, model, prompt_version, raw_json, status, stage, run_id, cache_hit) values ($1,$2,$3,$4,'invalid','extract',$5,$6)`, [id, stage.models.extract, p.version, JSON.stringify({ raw: x.raw.slice(0, 20000) }), o.run_id, x.calls.every((k) => k.cache_hit)]);
@@ -182,10 +188,7 @@ export async function processDocument(id: string, o: ProcessOptions): Promise<Pr
       } finally {
         c2.release();
       }
-    } else if (FACTS.has(cls.data.kind)) {
-      const f = await certificateFacts(prep, meta, stage);
-      tally(f.calls);
-      if (!f.ok) return await fail(`Certificate read failed: ${f.error}`);
+    } else if (f && f.ok) {
       const c3 = await o.pool.connect();
       try {
         await c3.query('begin');
@@ -203,6 +206,7 @@ export async function processDocument(id: string, o: ProcessOptions): Promise<Pr
     res.ok = true;
     return res;
   } catch (e) {
+    if (e instanceof DailyCapError) throw e; // stored results stay exactly as they were, with no error written on them
     if (e instanceof BudgetExceededError) {
       await o.pool.query(`update documents set error = $2 where id = $1`, [id, e.message]);
       throw e;

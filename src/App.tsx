@@ -1,12 +1,15 @@
-import { BarChart3, FileText, Inbox as InboxIcon, MessageSquare, Scale } from 'lucide-react';
+import { BarChart3, Database, FileText, Inbox as InboxIcon, MessageSquare, Scale, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { EvidenceDrawer } from '@/components/EvidenceDrawer';
+import { Btn } from '@/components/ui';
+import { formatIndian } from '../engine/format';
 import { TopStrip } from '@/components/TopStrip';
 import { AppProvider, useApp, type Page } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { Analyst } from '@/pages/Analyst';
 import { ComingNext } from '@/pages/ComingNext';
 import { Comparison } from '@/pages/Comparison';
+import { Eval } from '@/pages/Eval';
 import { Inbox } from '@/pages/Inbox';
 import { IssuedRfx } from '@/pages/IssuedRfx';
 
@@ -16,12 +19,13 @@ const STAGES: { id: Page; label: string; icon: typeof FileText; soon?: boolean }
   { id: 'comparison', label: 'Comparison', icon: BarChart3 },
   { id: 'analyst', label: 'Analyst', icon: MessageSquare },
   { id: 'decision', label: 'Decision', icon: Scale, soon: true },
+  { id: 'eval', label: 'Evaluation', icon: ShieldCheck },
 ];
 
 type Health = { ok: boolean; config: string; database: string };
 
 function Shell() {
-  const { page, setPage, toast, selection } = useApp();
+  const { page, setPage, toast, selection, resetDemo, resetCount, busy } = useApp();
   const [health, setHealth] = useState<Health | null>(null);
 
   useEffect(() => {
@@ -68,13 +72,24 @@ function Shell() {
           {page === 'rfx' ? <IssuedRfx /> : null}
           {page === 'inbox' ? <Inbox /> : null}
           {page === 'comparison' ? <Comparison /> : null}
-          {page === 'analyst' ? <Analyst /> : null}
+          {page === 'analyst' ? <Analyst key={resetCount} /> : null}
+          {page === 'eval' ? <Eval /> : null}
           {page === 'decision' ? <ComingNext title="Decision" what="Turn a scenario into an award decision pack that lists every assumption and every unresolved item." /> : null}
         </main>
       </div>
-      <footer className="flex h-8 shrink-0 items-center justify-between border-t border-border bg-card px-4 text-xs text-muted-foreground">
+      <footer className="flex min-h-8 shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-t border-border bg-card px-4 py-1 text-xs text-muted-foreground">
         <span>Server: {health ? (health.ok ? 'ready' : `config ${health.config}, database ${health.database}`) : 'checking'}</span>
-        <span>Usage meter arrives in phase 8.</span>
+        <UsageMeter />
+        <span className="min-w-[14rem] flex-1">Shared demo: edits are visible to everyone. Use Reset demo to restore.</span>
+        <Btn
+          small
+          disabled={busy > 0}
+          onClick={() => {
+            if (window.confirm('Reset the demo for everyone? This clears all corrections, assumption changes and chats. Extraction results are kept.')) void resetDemo();
+          }}
+        >
+          Reset demo
+        </Btn>
       </footer>
       <EvidenceDrawer />
       {toast ? (
@@ -83,6 +98,23 @@ function Shell() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function UsageMeter() {
+  const { usage } = useApp();
+  if (!usage) return <span>Usage: unavailable</span>;
+  if (usage.capped) {
+    return (
+      <span className="inline-flex items-center gap-1 font-medium text-status-assumed">
+        <Database size={12} aria-hidden /> Spend cap reached. Showing stored results from an earlier live run.
+      </span>
+    );
+  }
+  return (
+    <span title="Live model calls today and their estimated cost. Cached replays are free and not counted.">
+      Today: {usage.calls_today} live model {usage.calls_today === 1 ? 'call' : 'calls'}, about Rs {formatIndian(usage.cost_today_inr, 2)} of Rs {formatIndian(usage.daily_cap_inr, 0)}
+    </span>
   );
 }
 

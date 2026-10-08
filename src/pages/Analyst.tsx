@@ -1,13 +1,13 @@
 // The analyst chat. Answers stream in, tools run on the server, and every table, chart and
 // download is rendered from a stored tool result, never from numbers the model typed.
-import { MessageSquarePlus, Send, Square } from 'lucide-react';
+import { Database, MessageSquarePlus, Send, Square } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnswerView } from '@/components/analyst/AnswerView';
 import { Btn, PageTitle } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { applyEvent, emptyTurn, EXAMPLE_QUESTIONS, SESSION_KEY, streamTurn, type ChartPayload, type ExportChip, type FinalAnswer, type StoredResult, type Turn } from '@/lib/analyst';
+import { applyEvent, emptyTurn, EXAMPLE_QUESTIONS, SESSION_KEY, streamTurn, type Capped, type ChartPayload, type ExportChip, type FinalAnswer, type StoredResult, type Turn } from '@/lib/analyst';
 
 type Saved = { role: 'user' | 'assistant'; text: string; final: FinalAnswer | null; results: string[]; charts: ChartPayload[]; exports: ExportChip[] };
 type Restore = { session_id: string | null; messages: Saved[]; results: StoredResult[] };
@@ -35,8 +35,17 @@ function restoreTurns(r: Restore): Turn[] {
   return turns;
 }
 
+type StoredRun = { session_id: string; question: string; created_at: string };
+const STORED_LABEL = 'Showing stored results from an earlier live run';
+
 export function Analyst() {
-  const { selection } = useApp();
+  const { selection, usage, refreshUsage } = useApp();
+  // A refusal for this visitor (hourly limit) or for everyone (spend cap). Either way, stored runs are offered.
+  const [refused, setRefused] = useState<Capped | null>(null);
+  const [stored, setStored] = useState<StoredRun[] | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
+  const capped = !!usage?.capped || refused !== null;
+  const blockedMessage = refused?.message ?? usage?.message ?? null;
   const [turns, setTurns] = useState<Turn[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [input, setInput] = useState('');
@@ -67,22 +76,43 @@ export function Analyst() {
   }, []);
 
   useEffect(() => {
+    if (!capped || stored) return;
+    api<{ sessions: StoredRun[] }>('analyst?stored=1')
+      .then((r) => setStored(r.sessions))
+      .catch(() => setStored([]));
+  }, [capped, stored]);
+
+  const openStored = (run: StoredRun) => {
+    api<Restore>(`analyst?session_id=${run.session_id}`)
+      .then((r) => {
+        setTurns(restoreTurns(r));
+        setViewing(run.session_id);
+      })
+      .catch(() => undefined);
+  };
+
+  useEffect(() => {
+    // A stored run opens at its top; only a live answer follows the stream to the bottom.
+    if (viewing) return;
     bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [turns.length, turns[turns.length - 1]?.steps.length, turns[turns.length - 1]?.final]);
+  }, [viewing, turns.length, turns[turns.length - 1]?.steps.length, turns[turns.length - 1]?.final]);
 
   const ask = useCallback(
     async (q: string) => {
       const question = q.trim();
-      if (!question || busy) return;
+      if (!question || busy || capped) return;
       const id = `t${Date.now()}`;
       setInput('');
       setBusy(true);
-      setTurns((t) => [...t, emptyTurn(id, question)]);
+      // A stored run is read only: asking something new starts a fresh live chat.
+      const fresh = viewing !== null;
+      if (fresh) setViewing(null);
+      setTurns((t) => [...(fresh ? [] : t), emptyTurn(id, question)]);
       const ctl = new AbortController();
       abort.current = ctl;
-      let sid = sessionId;
+      let sid = fresh ? null : sessionId;
       try {
-        await streamTurn(
+        const refusal = await streamTurn(
           sid,
           question,
           (e) => {
@@ -99,6 +129,13 @@ export function Analyst() {
           },
           ctl.signal,
         );
+        if (refusal) {
+          // Nothing ran. Take the empty turn back out and show the stored runs instead.
+          setTurns((all) => all.filter((t) => t.id !== id));
+          setInput(question);
+          setRefused(refusal);
+          return;
+        }
         setTurns((all) => all.map((t) => (t.id === id && t.status === 'working' ? { ...t, status: 'error', error: 'The connection ended before the answer finished. Ask again.' } : t)));
       } catch (e) {
         const stopped = (e as Error).name === 'AbortError';
@@ -106,9 +143,10 @@ export function Analyst() {
       } finally {
         setBusy(false);
         abort.current = null;
+        void refreshUsage();
       }
     },
-    [busy, sessionId],
+    [busy, capped, sessionId, refreshUsage, viewing],
   );
 
   const newChat = () => {
@@ -120,6 +158,7 @@ export function Analyst() {
     }
     setSessionId(null);
     setTurns([]);
+    setViewing(null);
   };
 
   return (
@@ -134,15 +173,47 @@ export function Analyst() {
             </Btn>
           }
         />
+        {capped ? (
+          <div role="status" className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm">
+            <p className="flex items-center gap-1.5 font-medium text-status-assumed">
+              <Database size={14} aria-hidden /> {STORED_LABEL}
+            </p>
+            <p className="mt-1 text-foreground">{blockedMessage ?? 'New questions are paused.'}</p>
+            {stored && stored.length > 0 ? (
+              <>
+                <p className="mt-2 text-xs text-muted-foreground">These are real answers from earlier live runs, with the tool results they were built from. Open one to read it.</p>
+                <ul className="mt-1.5 max-h-44 space-y-1 overflow-auto">
+                  {stored.map((r) => (
+                    <li key={r.session_id}>
+                      <button
+                        type="button"
+                        aria-current={viewing === r.session_id ? 'true' : undefined}
+                        onClick={() => openStored(r)}
+                        className={cn('w-full rounded-md border border-border bg-card px-2 py-1.5 text-left text-xs hover:bg-muted', viewing === r.session_id && 'border-accent')}
+                      >
+                        {r.question}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+            {refused && !usage?.capped ? (
+              <Btn small className="mt-2" onClick={() => setRefused(null)}>
+                Try again
+              </Btn>
+            ) : null}
+          </div>
+        ) : null}
         <div className="flex-1 space-y-5 pb-4" aria-live="polite">
-          {loaded && turns.length === 0 ? (
+          {loaded && turns.length === 0 && !capped ? (
             <div className="rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
               <p className="font-medium text-foreground">Ask anything about the five quotes.</p>
               <p className="mx-auto mt-1 max-w-md">Try a question from the list on the right, or type your own. A follow up such as "now exclude Vendor 3" changes the last scenario.</p>
             </div>
           ) : null}
           {turns.map((t) => (
-            <AnswerView key={t.id} turn={t} onAsk={(q) => void ask(q)} busy={busy} />
+            <AnswerView key={t.id} turn={t} onAsk={(q) => void ask(q)} busy={busy || capped} />
           ))}
           <div ref={bottom} />
         </div>
@@ -162,6 +233,7 @@ export function Analyst() {
             value={input}
             rows={2}
             maxLength={1500}
+            disabled={capped}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -169,7 +241,7 @@ export function Analyst() {
                 void ask(input);
               }
             }}
-            placeholder="Ask a question about the quotes"
+            placeholder={capped ? 'New questions are paused. Open a stored run above.' : 'Ask a question about the quotes'}
             className="min-h-[3rem] flex-1 resize-none rounded-md border border-border bg-card px-3 py-2 text-sm"
           />
           {busy ? (
@@ -177,7 +249,7 @@ export function Analyst() {
               <Square size={14} aria-hidden /> Stop
             </Btn>
           ) : (
-            <Btn variant="primary" type="submit" disabled={!input.trim()}>
+            <Btn variant="primary" type="submit" disabled={!input.trim() || capped}>
               <Send size={14} aria-hidden /> Ask
             </Btn>
           )}
@@ -195,6 +267,7 @@ export function Analyst() {
                 <button
                   type="button"
                   className="w-full rounded-md border border-border px-2 py-1.5 text-left text-xs hover:bg-muted"
+                  disabled={capped}
                   onClick={() => {
                     setInput(q);
                     box.current?.focus();
