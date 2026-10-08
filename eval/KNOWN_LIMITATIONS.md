@@ -6,3 +6,5 @@
 4. **Photo lines are never Confirmed.** All 30 V4 values were read exactly, but they stay Assumed by design (DECISIONS D2). A buyer must eyeball the crop.
 5. **Certificates are read for facts only.** Name and expiry checks are deterministic, but a forged or edited certificate would not be detected.
 6. **Email bodies are documents.** Cover notes cost a classification call each (about Rs 0.06) and are then skipped.
+
+7. **Two further files are no longer held out.** A Metro Kraft spreadsheet and a Trident email were read once through Try your file, exposed four rule gaps (a doubled pack divisor, unmapped unit phrases, conditional prices shown as Confirmed, dropped vendor notes) and were used to fix them. Their raw replies are in `eval/fixtures` and are replayed by tests. They are regression tests now, not evidence of accuracy on unseen files (DECISIONS D100 to D108).

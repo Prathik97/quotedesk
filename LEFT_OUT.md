@@ -88,3 +88,14 @@ Real email sending and receiving, authentication and multi tenancy, vendor porta
 - **Per visitor Reset.** Reset demo clears every visitor's drafts and sandbox rows (D99).
 - **Anything proven on real Vercel.** Co-pilot streaming, the octet-stream upload body and the 60 second limit for a large file (D99).
 - **A held out test of the co-pilot.** Four live turns and a scripted test suite, not an evaluation of draft quality. Quantities and specs it proposes are defaults it labels as such; there is no check that they are sensible for a real plant.
+
+## Cut or deferred after the two unseen files (2026-10-08)
+- **A prompt change.** None: the raw replies showed the model had captured every note (D101). Nothing in `prompts/` changed and there was no live run of the production path after the code changes.
+- **A real fix for slab and indicative statements landing in `conditional_discounts`.** The model files a slab price and Trident's "5 percent below last year" under conditional discounts. Try your file only shows them. The stored pipeline would pass them to the discount engine, which only applies one it can read as a percent with a threshold. A prompt or a schema field for "price alternatives" would be the real fix.
+- **An adjusted price for a board grade difference.** Deliberately not computed. The vendor's surcharge text is shown and the line goes to Needs review.
+- **Comparison readiness for short validity.** Shown as a header warning only. A review item would change stored readiness counts.
+- **Per vendor validity in the decision memo and note.** Not added; the memo does not mention validity.
+- **Grade rules beyond BF numbers.** GSM, flute type and other board specs are not compared.
+- **Free text units not in the list** ("per lot", "per bundle of 50") still go to Needs review, or to the vendor's pack definition when one exists.
+- **Browser side recompute of the board grade for old stored cells** needs the quote level notes; they are passed, but only from the cell's own document, as for unit definitions.
+- **Held out evaluation.** Still none. These two files are used up (D100).
