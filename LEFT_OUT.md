@@ -99,3 +99,8 @@ Real email sending and receiving, authentication and multi tenancy, vendor porta
 - **Free text units not in the list** ("per lot", "per bundle of 50") still go to Needs review, or to the vendor's pack definition when one exists.
 - **Browser side recompute of the board grade for old stored cells** needs the quote level notes; they are passed, but only from the cell's own document, as for unit definitions.
 - **Held out evaluation.** Still none. These two files are used up (D100).
+- **Tax conflicts as stored review items.** The flag is on the line and in the Assumptions panel, but a conflict adds no separate open review item or vendor level `conflicting` basis in `vendor_terms.gst_basis` for the stored pipeline (Try your file has both). Adding it would change the stored readiness counts.
+- **Stated "GST extra" lifting a line to Confirmed.** A line that says GST extra under an unknown document basis stays Assumed, as before. Changing it needs a decision on lines that carry other unverified conditions.
+- **A model field for the tax basis and rate per line.** The schema has none and the prompt was not changed, because the model had captured the text. Only worth adding if the regular expressions miss real phrasing.
+- **Held out evaluation.** Still none. The WhatsApp file is used up (D109).
+

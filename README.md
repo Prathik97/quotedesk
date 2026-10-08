@@ -67,11 +67,11 @@ npm run check:function        # run on Node 22 before every push
 
 ## Known limitations
 
-- The evaluation is not a held out test: prompts and rules were tuned on the 15 dataset documents. Two further files (a Metro Kraft spreadsheet and a Trident email) were read once through Try your file and then used to fix engine rules, so they are no longer held out either. See `DECISIONS.md`.
+- The evaluation is not a held out test: prompts and rules were tuned on the 15 dataset documents. Three further files (a Metro Kraft spreadsheet, a Trident email and a pasted WhatsApp chat) were read once through Try your file and then used to fix engine rules, so they are no longer held out either. See `DECISIONS.md`.
 - Model output varies between runs, so one run is one sample.
 - Photo sourced prices are never Confirmed; a person must check the crop.
 - Certificates are read for facts only; a forged certificate would not be detected.
-- Prices that depend on a slab or dispatch condition are shown as Assumed with the alternate price. A board grade that differs from the RFx line goes to Needs review with the vendor's own surcharge text and no adjusted price.
+- Prices that depend on a slab or dispatch condition are shown as Assumed with the alternate price. A board grade that differs from the RFx line goes to Needs review with the vendor's own surcharge text and no adjusted price. A price the vendor says includes GST is divided by the vendor's stated rate (the assumed rate only when none is stated), conflicting tax statements cap the line at Assumed, and a box whose size fits another RFx line of the same ply better is flagged, not re-mapped.
 - The demo is a shared database: Reset demo clears everyone's drafts and Try your file results. No email is sent.
 - The first real run of the streaming co-pilot and of large uploads on Vercel is the final test of the deployment; see DEPLOY.md.
 - Everything deliberately not built is listed in `LEFT_OUT.md`.
