@@ -90,6 +90,35 @@ function packFits(defUnit: ParsedUnit, base: BaseUom): boolean {
   );
 }
 
+const PACK_TERM = '(?:box|boxes|bundle|bundles|pack|packs|packet|packets|bale|bales|case|cases|carton|cartons|ctn)';
+const INNER_UNIT = '(?:rolls?|pcs\\.?|pc|pieces?|nos\\.?|sets?|plates?|sheets?|kgs?|mtrs?|metres?|meters?|units?)';
+const PACK_DEF_A = new RegExp(`\\b(?:(\\d+(?:\\.\\d+)?)\\s*)?(${PACK_TERM})\\s*(?:=|of|contains|holds|has|is|means|:)\\s*(\\d+(?:\\.\\d+)?)\\s*(${INNER_UNIT})\\b`, 'gi');
+const PACK_DEF_B = new RegExp(`\\b(\\d+(?:\\.\\d+)?)\\s*(${INNER_UNIT})\\s*(?:per|/|in\\s+(?:a|1|one|each)|each)\\s*(${PACK_TERM})\\b`, 'gi');
+
+/**
+ * Pack definitions the vendor wrote in plain words next to a price or in a note: "1 carton = 100 rolls", "carton of
+ * 100 rolls", "100 rolls per carton". Read from the text itself, so a definition in the same line as the price holds
+ * even when the model did not return it as a unit definition. Nothing is guessed: no number or no unit, no definition.
+ */
+export function readPackDefinitions(texts: string[]): UnitDefinition[] {
+  const out: UnitDefinition[] = [];
+  const add = (term: string, qty: number, unit: string, quote: string) => {
+    if (!(qty > 0)) return;
+    const key = `${clean(term).replace(/(es|s)$/, '')}|${qty}|${clean(unit).replace(/s$/, '')}`;
+    if (out.some((d) => `${clean(d.term).replace(/(es|s)$/, '')}|${d.means_quantity}|${clean(d.means_unit ?? '').replace(/s$/, '')}` === key)) return;
+    out.push({ term: term.toLowerCase(), means_quantity: qty, means_unit: unit.toLowerCase(), quote });
+  };
+  for (const t of texts) {
+    if (!t) continue;
+    for (const m of t.matchAll(PACK_DEF_A)) {
+      const lead = m[1] ? Number(m[1]) : 1;
+      if (lead > 0) add(m[2] as string, Number(m[3]) / lead, m[4] as string, m[0].trim());
+    }
+    for (const m of t.matchAll(PACK_DEF_B)) add(m[3] as string, Number(m[1]), m[2] as string, m[0].trim());
+  }
+  return out;
+}
+
 /**
  * Picks the vendor's definition for a pack unit. A footnote marker on the price
  * ("per box**") must match the marker on the definition. Without a marker, an

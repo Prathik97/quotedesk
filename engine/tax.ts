@@ -25,6 +25,19 @@ const EXCL_RES = [
 const RATE = /(\d+(?:\.\d+)?)\s*(?:%|percent|per cent)/i;
 const BLANKET = /\b(all|every|entire|overall|sab|sabhi|saare|sarey)\b/i;
 const DISCOUNT = /\b(discount|rebate)\b/i;
+// An inclusive figure the vendor gives for the reader's convenience is not the quoted price. "shown" or "given" alone is
+// not enough ("Prices shown are GST inclusive" is a real statement); it counts only with words that say the basic
+// figure is the quoted one, or when the sheet has an including tax column (see isDualRateGrid).
+const INFO_RE = /\b(?:for\s+(?:your\s+|ur\s+|the\s+|our\s+)?(?:convenience|reference|information|info|illustration)|informational|fyi)\b/i;
+const SHOWN_RE = /\b(?:shown|given|displayed|listed|mentioned|provided)\b/i;
+const BASIC_QUOTED_RE = /\b(?:(?:basic|base|net|ex[- ]?(?:gst|tax))\s+(?:rate|price)s?\s+(?:is|are)\s+(?:the\s+)?(?:quoted|offered|actual|firm)|(?:quoted|offered|actual)\s+(?:price|rate)s?\s+(?:is|are)\s+(?:the\s+)?(?:basic|base|net))/i;
+
+/** True when a clause only gives an inclusive figure for information. `dual` is true when the sheet has an incl tax column. */
+export function isInformationalClause(c: string, dual = false): boolean {
+  if (INFO_RE.test(c)) return true;
+  if (SHOWN_RE.test(c) && (dual || BASIC_QUOTED_RE.test(c))) return true;
+  return BASIC_QUOTED_RE.test(c) && INCL_RES.some((re) => re.test(c));
+}
 
 /** Sentences and clauses of a text, split without breaking a decimal such as 12.5. */
 function clauses(text: string): string[] {
@@ -43,11 +56,12 @@ function firstAt(res: RegExp[], text: string): number {
  * each with its own fragment of the clause: cut at the last comma before the later statement, so that the product
  * words of one statement are not read as the scope of the other.
  */
-export function taxStatements(text: string): TaxStatement[] {
+export function taxStatements(text: string, dual = false): TaxStatement[] {
   const out: TaxStatement[] = [];
   for (const c of clauses(text)) {
     if (DISCOUNT.test(c)) continue; // "4% discount if PO above Rs 25 lakh excl GST" describes the discount threshold, not the price
-    const incl = INCL_RES.some((re) => re.test(c));
+    const info = isInformationalClause(c, dual);
+    const incl = !info && INCL_RES.some((re) => re.test(c));
     const excl = EXCL_RES.some((re) => re.test(c));
     const blanket = BLANKET.test(c);
     const rateOf = (t: string) => {
@@ -177,19 +191,145 @@ export function statementsInText(text: string | null | undefined, own: string[],
   const ownNorm = own.map(normText).filter((o) => o.length >= 6);
   const seen = new Set<string>();
   const out: DocTaxStatement[] = [];
-  for (const raw of text.split('\n')) {
+  const header = headerLines(text).lines;
+  const dual = isDualRateGrid(text);
+  text.split('\n').forEach((raw, idx) => {
     const line = raw.trim();
-    if (!line || line.length > 600) continue;
-    const found = taxStatements(line);
-    if (found.length === 0) continue;
+    if (!line || line.length > 600 || out.length >= cap || header.has(idx)) return;
+    const found = taxStatements(line, dual);
+    if (found.length === 0) return;
     const n = normText(line);
-    if (ownNorm.some((o) => n.includes(o))) continue;
-    if (seen.has(n)) continue;
+    if (ownNorm.some((o) => n.includes(o))) return;
+    if (seen.has(n)) return;
     seen.add(n);
     out.push({ quote: line.replace(/^\[(?:L|P|T)\d+[^\]]*\]\s*/, ''), basis: found[0]?.basis ?? null, rate_pct: found.find((f) => f.rate_pct != null)?.rate_pct ?? null, scope: '', is_correction: false });
-    if (out.length >= cap) break;
-  }
+  });
   return out;
+}
+
+// ---- Table headers are not tax statements ----
+
+type TextRow = { lines: number[]; cells: string[] };
+// A cell address ("F8:", "[T1 R2 C3]") or a line address ("[L18]") at the start of a cell.
+const ADDR = /^(?:(?:\[(?:T\d+ R\d+ C\d+|[LP]\d+[^\]]*)\]|[A-Z]{1,3}\d+:)\s*)+/;
+const NUMERIC_CELL = /^\D{0,4}\d[\d,]*(?:\.\d+)?\D{0,8}$/;
+const LABEL_WORDS = /\b(?:sr|s\.?no|sl|no|item|description|particulars|goods|product|size|specification|spec|unit|uom|qty|quantity|rate|price|amount|remarks?|basic|total|hsn|code|moq)\b/gi;
+
+function cellsOf(line: string): string[] {
+  const parts = line.includes(' | ') ? line.split(' | ') : line.split(/\t|\s{2,}/);
+  return parts.map((c) => c.replace(ADDR, '').trim()).filter(Boolean);
+}
+
+/** The text as rows: one row per line, except that the cells of a Word table row (one line each) are joined. */
+function rowsOf(lines: string[]): TextRow[] {
+  const rows: TextRow[] = [];
+  let lastKey = '';
+  lines.forEach((raw, idx) => {
+    const line = raw.trim();
+    if (!line || /^=== /.test(line) || /^Merged regions:/.test(line)) return;
+    const t = /^\[(T\d+ R\d+) C\d+\]/.exec(line);
+    if (t) {
+      const last = rows[rows.length - 1];
+      if (last && lastKey === t[1]) { last.lines.push(idx); last.cells.push(...cellsOf(line)); return; }
+      lastKey = t[1] as string;
+      rows.push({ lines: [idx], cells: cellsOf(line) });
+      return;
+    }
+    lastKey = '';
+    rows.push({ lines: [idx], cells: cellsOf(line) });
+  });
+  return rows;
+}
+
+const isLabelCell = (c: string) => c.length <= 60 && c.split(/\s+/).length <= 8 && !/^[\s\d.,%()-]+$/.test(c);
+const isLabelRow = (r: TextRow) => r.cells.length >= 3 && r.cells.every(isLabelCell);
+const isDataRow = (r: TextRow) => r.cells.length >= 2 && r.cells.some((c) => NUMERIC_CELL.test(c));
+const numericTokens = (line: string) => (line.match(/\b\d[\d,]*(?:\.\d+)?\b/g) ?? []).length;
+
+/**
+ * The header rows of the tables in a text: a row of short labels (three or more cells, none a number) directly above a
+ * row of data, and a line of plain text made only of column words ("Sr Description Unit Basic rate Rate incl GST")
+ * directly above a line of numbers. A prose note, even inside a table, is never a header.
+ */
+export function headerLines(text: string | null | undefined): { lines: Set<number>; rows: TextRow[] } {
+  const lines = text ? text.split('\n') : [];
+  const rows = rowsOf(lines);
+  const hdr = new Set<number>();
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i] as TextRow;
+    let isHeader = false;
+    if (isLabelRow(r)) {
+      let j = i + 1;
+      while (j < rows.length && isLabelRow(rows[j] as TextRow)) j++;
+      isHeader = j < rows.length && isDataRow(rows[j] as TextRow);
+    } else if (r.cells.length < 3) {
+      const one = lines[(r.lines[0] as number)] ?? '';
+      const words = one.replace(ADDR, '').trim().split(/\s+/);
+      const next = rows[i + 1];
+      const label = new Set((one.match(LABEL_WORDS) ?? []).map((w) => w.toLowerCase()));
+      isHeader = r.cells.length === 1 && words.length <= 20 && !/\d/.test(one.replace(ADDR, '')) && label.size >= 4 && next != null && numericTokens(lines[(next.lines[0] as number)] ?? '') >= 2;
+    }
+    if (isHeader) r.lines.forEach((n) => hdr.add(n));
+  }
+  return { lines: hdr, rows };
+}
+
+/** The labels of the table headers in a text, normalised, and the whole header lines. */
+function headerLabels(text: string | null | undefined): { labels: Set<string>; whole: string[] } {
+  const { lines, rows } = headerLines(text);
+  const all = text ? text.split('\n') : [];
+  const labels = new Set<string>();
+  const whole: string[] = [];
+  for (const r of rows) {
+    if (!lines.has(r.lines[0] as number)) continue;
+    r.cells.forEach((c) => labels.add(normText(c)));
+    if (r.cells.length === 1) labels.add(normText(r.cells[0] as string));
+    whole.push(normText(r.lines.map((n) => all[n] ?? '').join(' ')));
+  }
+  return { labels, whole };
+}
+
+/** True when the quote is a column header or one of its labels, not a statement. */
+export function isHeaderQuote(quote: string | null | undefined, text: string | null | undefined): boolean {
+  if (!quote || !text) return false;
+  const { labels, whole } = headerLabels(text);
+  const q = normText(quote.replace(ADDR, ''));
+  if (!q) return false;
+  const nq = normText(quote);
+  return labels.has(q) || whole.some((w) => w.includes(nq) || nq.includes(w)) || [...labels].some((l) => l.length >= 6 && q === l);
+}
+
+/**
+ * Quote level notes and verified model statements, minus the ones that are not statements about the quoted price: a
+ * quote that is a column header, and, on a sheet with an including tax column, a note that only says the inclusive
+ * figures are shown or given.
+ */
+export function cleanTaxQuotes(quotes: string[], text: string | null | undefined): string[] {
+  const dual = isDualRateGrid(text);
+  return quotes.filter((q) => {
+    if (isHeaderQuote(q, text)) return false;
+    if (dual && taxStatements(q, false).length > 0 && taxStatements(q, true).length === 0) return false;
+    return true;
+  });
+}
+
+const EXCL_COL = /\b(?:basic|base|net|excl\w*|ex[- ]?(?:gst|tax)|before\s+(?:gst|tax)|pre[- ]?tax|without\s+(?:gst|tax))\b/i;
+const INCL_COL = /\b(?:incl\w*|inc\.?|with\s+(?:gst|tax)|after\s+(?:gst|tax)|gross)\b/i;
+const MONEY_COL = /\b(?:rate|price|amount|cost)\b/i;
+
+/** The sheet has a basic (excluding tax) rate column and an including tax rate column. The basic one is the quote. */
+export function isDualRateGrid(text: string | null | undefined): boolean {
+  const { lines, rows } = headerLines(text);
+  return rows.some((r) => {
+    if (!lines.has(r.lines[0] as number)) return false;
+    const money = r.cells.filter((c) => MONEY_COL.test(c));
+    return money.some((c) => INCL_COL.test(c) && /\b(?:gst|tax|vat)\b/i.test(c)) && money.some((c) => EXCL_COL.test(c) && !INCL_COL.test(c));
+  });
+}
+
+/** A quoted statement shortened for display. Never used for matching. */
+export function clipQuote(s: string, max = 160): string {
+  return s.length <= max ? s : `${s.slice(0, max - 3).trimEnd()}...`;
 }
 
 const fmt2 = (n: number) => n.toFixed(2);
@@ -224,17 +364,17 @@ export function resolveTax(input: TaxInput): TaxResolution {
   const lineText = i.scope_text ?? '';
   // The basis the line would get without the guard. An unstated basis is read as excluding GST, as the RFx asks.
   const baseline: 'incl' | 'excl' = base.basis === 'incl_gst' ? 'incl' : 'excl';
-  const noteStmts = i.notes.flatMap(taxStatements);
+  const noteStmts = i.notes.flatMap((t) => taxStatements(t));
   // A verified model statement the regular expressions cannot read (another language, odd wording) still counts, on
   // the model's basis and its own scope words.
-  const modelOnly = (i.doc_statements ?? []).filter((d) => d.basis && taxStatements(d.quote).length === 0).map((d) => ({ basis: d.basis as 'incl' | 'excl', text: d.scope || d.quote, rate_pct: d.rate_pct }));
+  const modelOnly = (i.doc_statements ?? []).filter((d) => d.basis && taxStatements(d.quote).length === 0 && !isInformationalClause(d.quote)).map((d) => ({ basis: d.basis as 'incl' | 'excl', text: d.scope || d.quote, rate_pct: d.rate_pct }));
   const docLevel = [...noteStmts.map((s) => ({ basis: s.basis, text: s.text, rate_pct: s.rate_pct })), ...modelOnly];
   const opposing = docLevel.filter((s) => s.basis !== baseline && scopeCovers(scopeOf(s.text), lineText));
   const why: TaxGuard['why'] | null = base.conflict ? 'conflict' : opposing.length > 0 ? 'scoped' : null;
   if (!why) return base;
 
   const m = i.model_tax;
-  if (m?.basis && m.quote && m.quote_found) {
+  if (m?.basis && m.quote && m.quote_found && !isInformationalClause(m.quote)) {
     const qScope = scopeOf(m.quote);
     // A quote with no product words must be the line's own text. One with product words must cover this line.
     const covers = qScope.all ? normText(lineText).includes(normText(m.quote)) : scopeCovers(qScope, lineText);
@@ -261,8 +401,8 @@ export function resolveTax(input: TaxInput): TaxResolution {
  * blanket statement or has no statement of its own.
  */
 function resolveBase(i: TaxInput): TaxResolution {
-  const own = i.conditions.flatMap(taxStatements);
-  const noteStmts = i.notes.flatMap(taxStatements);
+  const own = i.conditions.flatMap((t) => taxStatements(t));
+  const noteStmts = i.notes.flatMap((t) => taxStatements(t));
   const none: TaxResolution = { basis: 'unknown', rate_pct: null, source: 'none', statement: null, conflict: null, contradiction: null, guard: null };
 
   const ownIncl = own.find((s) => s.basis === 'incl');
@@ -322,5 +462,5 @@ export function uniqueConflicts(list: (TaxConflict | null)[]): TaxConflict[] {
 }
 
 export function conflictText(c: TaxConflict): string {
-  return `Conflicting tax statements: "${c.a}" and "${c.b}".`;
+  return `Conflicting tax statements: "${clipQuote(c.a)}" and "${clipQuote(c.b)}".`;
 }

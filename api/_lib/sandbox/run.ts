@@ -14,7 +14,7 @@ import { type CertificateFacts } from '../../../src/lib/schemas/extraction.js';
 import { certificateFacts, classify, extract, type RfxContext, type StageOptions } from '../extract/model.js';
 import { deriveLines, type QuestionRow, type RfxLineRow } from '../extract/persist.js';
 import { prepare, ACCEPTED } from '../extract/prepare.js';
-import { conflictText, uniqueConflicts } from '../../../engine/tax.js';
+import { clipQuote, conflictText, uniqueConflicts } from '../../../engine/tax.js';
 import { shortValidityWarning, validityDays } from '../../../engine/terms.js';
 
 export const SANDBOX_LABEL = 'Your file, read live by the same pipeline. Not added to the comparison.';
@@ -246,7 +246,8 @@ export async function runSandbox(input: SandboxInput, ctx: SandboxContext, deps:
   const covered = new Set(lines.filter((l) => l.code).map((l) => l.code as string));
   const review: SandboxReview[] = [...base.review];
   for (const d of derived) {
-    if (d.status === 'needs_review') review.push({ kind: 'line_needs_review', severity: 'warn', message: `${d.rfx?.code ?? d.line.vendor_description}: ${d.reasons.join(' ')}` });
+    // The tax statement is quoted once, in the document warning below. A line only points to it.
+    if (d.status === 'needs_review') review.push({ kind: 'line_needs_review', severity: 'warn', message: `${d.rfx?.code ?? d.line.vendor_description}: ${d.reasons.map((r) => (r.startsWith('Not derived: ') ? 'Not derived, tax unresolved, see the document warning.' : r)).join(' ')}` });
   }
   for (const u of x.data.unmatched_lines) review.push({ kind: 'unmatched_vendor_line', severity: 'info', message: `Not matched to any RFx line: "${u.vendor_description}". ${u.reason}` });
   for (const s of x.data.document.suspicious_content) {
@@ -273,7 +274,7 @@ export async function runSandbox(input: SandboxInput, ctx: SandboxContext, deps:
   // A scoped statement that may apply to lines with no tax statement of their own, in a document with no conflict.
   const scopedOnly = derived.filter((d) => d.result?.tax?.guard && !d.result.tax.conflict);
   if (scopedOnly.length > 0) {
-    const said = [...new Set(scopedOnly.flatMap((d) => d.result?.tax?.guard?.statements ?? []))].map((t) => `"${t}"`).join(' and ');
+    const said = [...new Set(scopedOnly.flatMap((d) => d.result?.tax?.guard?.statements ?? []))].map((t) => `"${clipQuote(t)}"`).join(' and ');
     review.push({ kind: 'tax_not_derived', severity: 'warn', message: `The vendor made a tax statement that may apply to lines with no tax statement of their own: ${said}. ${taxOutcome(scopedOnly)}` });
   }
   const dupCodes = [...new Set(derived.filter((d) => d.result?.flags.includes('duplicate_rfx_match')).map((d) => d.rfx?.code ?? ''))].filter(Boolean);

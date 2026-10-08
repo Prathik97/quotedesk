@@ -69,22 +69,40 @@ describe('Metro Kraft raw reply (xlsx), tax note removed so the unit and grade r
   });
 });
 
-describe('Metro Kraft raw reply (xlsx), as captured: a scoped tax statement makes the lines it could cover Not derived (H1)', () => {
+describe('Metro Kraft raw reply (xlsx), as captured: an inclusive figure shown for convenience is not the quoted price (K1)', () => {
   const r = replay('sandbox-metro-kraft', 'xlsx');
-  it('cartons and the partition set that names a carton are Not derived, the price shown as written, Needs review', () => {
-    for (const code of ['CRT-3P-01', 'CRT-3P-02', 'CRT-5P-07', 'INS-PRT-01']) {
-      const d = r.by(code);
-      expect(d?.normalized, code).toBeNull();
-      expect(d?.status, code).toBe('needs_review');
-      expect(d?.flags, code).toContain('tax_unresolved');
-      expect(d?.reasons.join(' '), code).toMatch(/^Not derived: /);
+  it('the note says rates incl GST are shown for cartons for convenience and the basic rate is the quoted price', () => {
+    expect(r.x.document.global_notes.join(' ')).toMatch(/incl\. GST shown for cartons only, for convenience; basic rate is the quoted price/);
+  });
+  it('all 24 lines derive their basic price, none is Not derived', () => {
+    expect(r.derived).toHaveLength(24);
+    for (const d of r.derived) {
+      expect(d.flags, d.rfx?.code).not.toContain('tax_unresolved');
+      expect(d.normalized, d.rfx?.code).not.toBeNull();
+      expect(d.reasons.join(' '), d.rfx?.code).not.toMatch(/^Not derived/);
     }
   });
-  it('lines that name no carton keep their value and status (a sheet, tape, film are outside the statement)', () => {
+  it('cartons per 100 divide correctly, sheets per kg and the rest are unchanged', () => {
+    expect(r.by('CRT-3P-01')?.normalized).toBeCloseTo(6.15, 10);
+    expect(r.by('CRT-3P-01')?.status).toBe('confirmed');
+    expect(r.by('INS-PRT-01')?.normalized).toBeCloseTo(9.5, 10);
     expect(r.by('SHT-3P-01')?.normalized).toBeCloseTo(39.6, 10);
     expect(r.by('SHT-3P-01')?.status).toBe('confirmed');
-    expect(r.by('TPE-BOPP-01')?.status).toBe('confirmed');
-    expect(r.by('FLM-STR-01')?.status).toBe('confirmed');
+    expect(r.by('FLM-STR-01')?.normalized).toBeCloseTo(109, 10);
+  });
+  it('the 5 ply lines stay Needs review on the vendor BF 20 and Rs 0.80 text, no adjusted price', () => {
+    for (const code of ['CRT-5P-01', 'CRT-5P-02', 'CRT-5P-03', 'CRT-5P-04', 'CRT-5P-05']) {
+      const d = r.by(code);
+      expect(d?.status, code).toBe('needs_review');
+      expect(d?.flags, code).toContain('board_grade_mismatch');
+      expect(d?.reasons.join(' '), code).toMatch(/BF 20/);
+      expect(d?.reasons.join(' '), code).toMatch(/No adjusted price is computed/);
+    }
+    expect(r.by('CRT-5P-01')?.reasons.join(' ')).toContain('add Rs 0.80 per carton for BF 22');
+    expect(r.by('CRT-5P-01')?.normalized).toBeCloseTo(27.4, 10);
+  });
+  it('the 3 ply cartons carry no grade flag', () => {
+    for (const code of ['CRT-3P-01', 'CRT-3P-02', 'CRT-3P-03', 'CRT-3P-04', 'CRT-3P-05']) expect(r.by(code)?.flags, code).not.toContain('board_grade_mismatch');
   });
 });
 

@@ -3,9 +3,9 @@
 // line's normalized price, flags and status are derived, for the extraction
 // pipeline and for every later change (FX, GST, corrections), so the two can
 // never disagree.
-import { normalizePrice, specLengthMm } from './convert';
+import { normalizePrice, readPackDefinitions, specLengthMm } from './convert';
 import type { SizeCheck } from './dimensions';
-import { conflictText, readingsText, resolveTax, type DocTaxStatement, type ModelTax, type TaxResolution } from './tax';
+import { clipQuote, conflictText, readingsText, resolveTax, type DocTaxStatement, type ModelTax, type TaxResolution } from './tax';
 import { gradeMismatch, readTerms } from './terms';
 import type { Assumptions, BaseUom, ConversionStep, LineStatus, ReadConfidence, SourceType, UnitDefinition } from './types';
 import { assignStatus, lineFlags } from './verify';
@@ -101,7 +101,7 @@ function unitProblemText(price: number | null, uomText: string | null, base: Bas
 function notDerivedText(tax: TaxResolution, price: number | null, currency: string | null): string {
   const g = tax.guard;
   if (!g) return '';
-  const said = g.statements.map((t) => `"${t}"`).join(' and ');
+  const said = g.statements.map((t) => `"${clipQuote(t)}"`).join(' and ');
   const why = g.why === 'conflict' ? `The vendor's tax statements conflict: ${said}.` : `The vendor made a tax statement that may apply to this line: ${said}.`;
   const shown = price != null ? ` The price is shown as the vendor wrote it (${price} ${currency ?? 'INR'}).` : '';
   const both = price != null && g.rate_pct != null && (currency ?? 'INR').toUpperCase() === 'INR' ? ` As text only, not a value: ${readingsText(price, g.rate_pct)}.` : '';
@@ -134,7 +134,8 @@ export function recomputeLine(l: StoredLine, a: Assumptions): LineResult {
       inherits_last_year: inherits,
       base_uom: l.base_uom,
       last_year_rate_inr: l.last_year_rate_inr,
-      unit_definitions: l.unit_definitions,
+      // A pack definition in the same line as the price, or in the vendor's notes, holds even when the model did not return it.
+      unit_definitions: [...l.unit_definitions, ...readPackDefinitions([l.evidence_quote ?? '', ...(l.conditions ?? []), ...(l.vendor_notes ?? [])])],
       pack_override: o.pack ?? null,
       spec_length_mm: specLengthMm(l.rfx_text),
     },

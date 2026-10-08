@@ -67,7 +67,7 @@ describe('H1: no derived excluding GST price where a statement may govern the li
     expect(r.reasons.join(' ')).not.toMatch(/if including/);
   });
   it('a scoped inclusive statement against a document basis of excl, with no conflict word, still guards the covered line only', () => {
-    const notes = ['Carton rates include 12 percent GST for convenience.'];
+    const notes = ['Carton rates include 12 percent GST.'];
     const carton = recomputeLine({ ...base, tax_basis: 'excl_gst', vendor_notes: notes }, a);
     expect(carton.normalized_inr).toBeNull();
     const tape = recomputeLine({ ...base, tax_basis: 'excl_gst', vendor_notes: notes, scope_text: 'BOPP tape 48 mm ; Tapes', rfx_text: 'BOPP tape' }, a);

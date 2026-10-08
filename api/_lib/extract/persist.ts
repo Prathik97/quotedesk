@@ -4,7 +4,7 @@ import type pg from 'pg';
 import type { Assumptions, BaseUom, UnitDefinition } from '../../../engine/types.js';
 import { sizeCheck, type SizeCheck } from '../../../engine/dimensions.js';
 import { READ_SCORE, recomputeLine, type LineResult } from '../../../engine/recompute.js';
-import { normText, quoteInText, statementsInText, type DocTaxStatement, type ModelTax } from '../../../engine/tax.js';
+import { cleanTaxQuotes, isHeaderQuote, normText, quoteInText, statementsInText, type DocTaxStatement, type ModelTax } from '../../../engine/tax.js';
 import { coversExactlyRemainder, VERIFIED_SCOPE_CONFIDENCE } from '../../../engine/verify.js';
 import { expandGroupStatements, type CertificateFacts, type ExtractedLine, type Extraction } from '../../../src/lib/schemas/extraction.js';
 import type { Prepared } from './prepare.js';
@@ -111,10 +111,12 @@ export function deriveLines(prep: Prepared, x: Extraction, lines: RfxLineRow[], 
   const ownTexts = expanded.flatMap((l) => [l.evidence.quote ?? '', ...l.conditions]).filter(Boolean);
   const fromText = statementsInText(prep.text, ownTexts);
   const fromModel: DocTaxStatement[] = x.document.tax_statements
-    .filter((t) => quoteInText(t.quote, prep.text))
+    .filter((t) => quoteInText(t.quote, prep.text) && !isHeaderQuote(t.quote, prep.text))
     .map((t) => ({ quote: t.quote as string, basis: t.basis, rate_pct: t.rate_pct, scope: t.scope, is_correction: t.is_correction }));
   const seenTax = new Set<string>();
   const docTax: DocTaxStatement[] = [...fromModel, ...fromText].filter((d) => { const k = normText(d.quote); if (seenTax.has(k)) return false; seenTax.add(k); return true; }).slice(0, 24);
+  // Quote level notes that are a column header, or only describe an informational including tax column, are not tax statements.
+  const taxNotes = cleanTaxQuotes(x.document.global_notes, prep.text);
   return expanded.map((l): DerivedLine => {
     const rfx = l.rfx_line_code ? byCode.get(l.rfx_line_code.trim()) ?? null : null;
     const size: SizeCheck | null = rfx && !l.inherits_last_year ? sizeCheck([l.vendor_description, l.evidence.quote ?? ''], { code: rfx.code, text: rfxText(rfx) }, peers, quotedCodes) : null;
@@ -141,7 +143,7 @@ export function deriveLines(prep: Prepared, x: Extraction, lines: RfxLineRow[], 
             evidence_quote: l.evidence.quote ?? null, evidence_locator: l.evidence.locator ?? null,
             sticky_flags: sticky, overrides: {},
             conditions: l.conditions, annual_qty: rfx.annual_qty, rfx_text: [rfx.description, rfx.spec].filter(Boolean).join(' ; '),
-            vendor_notes: x.document.global_notes,
+            vendor_notes: taxNotes,
             size_check: size, duplicate_rfx_match: duplicate,
             scope_text: scopeText, model_tax: modelTax, doc_tax_statements: docTax,
           },
