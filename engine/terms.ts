@@ -162,14 +162,25 @@ export function gradeMismatch(rfxDescription: string, vendorNotes: string[], lin
 
 // ---- Validity (F4) ----
 
-/** Days in a validity statement: "30 days", "valid for 2 weeks", "3 months". null when it cannot be read. */
+const VALIDITY_UNITS: Record<string, number> = {
+  day: 1, days: 1, din: 1, dino: 1, divas: 1, dias: 1, jour: 1, jours: 1, tage: 1, tagen: 1,
+  week: 7, weeks: 7, hafte: 7, haftey: 7, hafta: 7, semana: 7, semanas: 7, semaine: 7, semaines: 7, woche: 7, wochen: 7,
+  month: 30, months: 30, mahine: 30, mahina: 30, mahinay: 30, meses: 30, mois: 30, monat: 30, monate: 30,
+  year: 365, years: 365, saal: 365, varsh: 365, anos: 365, jahr: 365, jahre: 365,
+};
+
+/**
+ * Days in a validity statement: "30 days", "valid for 2 weeks", "3 months", and the same in a few other languages
+ * the vendor may write in ("10 din", "2 hafte", "15 dias"). A number followed by a word that is not a time unit gives
+ * null; nothing is guessed. Lenient on purpose about the wording around the number, strict about the unit.
+ */
 export function validityDays(text: string | null | undefined): number | null {
   if (!text) return null;
-  const m = /(\d+(?:\.\d+)?)\s*(day|week|month|year)s?\b/i.exec(text);
-  if (!m) return null;
-  const n = Number(m[1]);
-  const mult = { day: 1, week: 7, month: 30, year: 365 }[(m[2] as string).toLowerCase() as 'day' | 'week' | 'month' | 'year'];
-  return Math.round(n * mult);
+  for (const m of text.matchAll(/(\d+(?:\.\d+)?)\s*([a-zA-Z\u00c0-\u00ff]+)/g)) {
+    const mult = VALIDITY_UNITS[(m[2] as string).toLowerCase()];
+    if (mult) return Math.round(Number(m[1]) * mult);
+  }
+  return null;
 }
 
 /** The warning when a vendor's validity is shorter than the RFx asks for. null when it is long enough or unreadable. */

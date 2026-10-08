@@ -100,17 +100,23 @@ export type StatusDecision = { status: LineStatus; reasons: string[] };
 export function assignStatus(s: StatusInput): StatusDecision {
   const review: string[] = [];
   const priceRead = s.price_read ?? s.has_price;
-  if (!s.has_price && !(priceRead && !s.unit_known)) review.push('No readable price.');
-  if (!s.unit_known) review.push(s.unit_detail ?? 'Unit could not be mapped to the RFx unit.');
   const ft = (k: string, fallback: string) => s.flag_text?.[k] ?? fallback;
+  const taxUnresolved = s.flags.includes('tax_unresolved');
+  if (!s.has_price && !(priceRead && !s.unit_known) && !taxUnresolved) review.push('No readable price.');
+  if (!s.unit_known) review.push(s.unit_detail ?? 'Unit could not be mapped to the RFx unit.');
+  // A line that says both included and extra has no usable price. A buyer check does not settle it: edit the value instead.
+  if (taxUnresolved) review.push(ft('tax_unresolved', 'The tax basis of this line contradicts itself. The price is not converted.'));
   // Judgements about the vendor's terms that a person must settle: they hold even after a buyer check of the number.
   const terms: string[] = [];
   if (s.flags.includes('board_grade_mismatch')) terms.push(ft('board_grade_mismatch', 'The vendor prices a different board grade than this RFx line. No adjusted price is computed.'));
   if (s.flags.includes('minimum_above_annual')) terms.push(ft('minimum_above_annual', 'The vendor minimum order is above the annual quantity.'));
+  if (s.flags.includes('dimension_mismatch')) terms.push(ft('dimension_mismatch', 'The size does not fit the matched RFx line; another line of the same ply fits better.'));
+  if (s.flags.includes('duplicate_rfx_match')) terms.push(ft('duplicate_rfx_match', 'Another line in this document is matched to the same RFx line.'));
   if (s.buyer_verified) {
     // A person looked at the source: read, match and evidence doubts are settled.
     if (review.length > 0) return { status: 'needs_review', reasons: review };
     if (terms.length > 0) return { status: 'assumed', reasons: [`Verified by the buyer, at the vendor's own unadjusted price. ${terms.join(' ')}`] };
+    if (s.flags.includes('tax_conflict')) return { status: 'assumed', reasons: [`Verified by the buyer, but the tax statements in the document still conflict. ${ft('tax_conflict', '')}`.trim()] };
     if (s.assumption_keys.length > 0) return { status: 'assumed', reasons: [`Verified by the buyer. Still depends on: ${s.assumption_keys.join(', ')}.`] };
     return { status: 'confirmed', reasons: ['Verified by the buyer against the source. No assumptions apply.'] };
   }
@@ -126,7 +132,9 @@ export function assignStatus(s: StatusInput): StatusDecision {
   if (review.length > 0) return { status: 'needs_review', reasons: review };
 
   const assumed: string[] = [];
-  if (s.assumption_keys.length > 0) assumed.push(`Assumptions applied: ${s.assumption_keys.join(', ')}.`);
+  const plainKeys = s.assumption_keys.filter((k) => k !== 'tax_basis_conflict');
+  if (plainKeys.length > 0) assumed.push(`Assumptions applied: ${plainKeys.join(', ')}.`);
+  if (s.flags.includes('tax_conflict')) assumed.push(ft('tax_conflict', 'The document makes conflicting tax statements.'));
   if (s.flags.includes('conditional_price')) assumed.push(ft('conditional_price', 'The price depends on a condition that has not been verified.'));
   if (s.source_type === 'image') assumed.push('Read from a photo. Photo values are never auto confirmed.');
   if (assumed.length > 0) return { status: 'assumed', reasons: assumed };

@@ -36,6 +36,8 @@ export function deriveCell(cell: GridCell, base: { uom: string; ly: number | nul
     annual_qty: base.annual_qty ?? null,
     rfx_text: raw.rfx_text ?? '',
     vendor_notes: raw.vendor_notes ?? [],
+    size_check: raw.size_check ?? null,
+    duplicate_rfx_match: raw.duplicate_rfx_match ?? null,
   };
   const r = recomputeLine(stored, a);
   return {

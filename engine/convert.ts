@@ -126,6 +126,8 @@ export type NormalizeInput = {
   uom_text: string | null;
   per_n?: number | null;
   tax_basis: 'excl_gst' | 'incl_gst' | 'unknown';
+  /** The GST rate the vendor stated for an inclusive price. null or absent means none was stated: the assumed rate applies. */
+  gst_rate_pct?: number | null;
   inherits_last_year?: boolean;
   base_uom: BaseUom;
   last_year_rate_inr: number | null;
@@ -168,7 +170,7 @@ export type NormalizeResult =
       pack_source?: 'vendor' | 'buyer';
       notes: string[];
     }
-  | { ok: false; reason: 'no_price' | 'unit_unknown' | 'unit_incompatible' | 'pack_size_unknown' | 'currency_unknown' | 'no_last_year_rate'; detail: string };
+  | { ok: false; reason: 'no_price' | 'tax_unresolved' | 'unit_unknown' | 'unit_incompatible' | 'pack_size_unknown' | 'currency_unknown' | 'no_last_year_rate'; detail: string };
 
 /** Pure: same input, same output. Full precision; rounding is for display only. */
 export function normalizePrice(input: NormalizeInput, a: Assumptions): NormalizeResult {
@@ -206,10 +208,16 @@ export function normalizePrice(input: NormalizeInput, a: Assumptions): Normalize
 
   // Tax basis
   if (input.tax_basis === 'incl_gst') {
-    const f = 1 + a.gst_pct / 100;
+    // The vendor's own rate wins. The assumed rate is used only when the document says inclusive and gives none.
+    const stated = input.gst_rate_pct != null && input.gst_rate_pct >= 0 ? input.gst_rate_pct : null;
+    const f = 1 + (stated ?? a.gst_pct) / 100;
     v = v / f;
-    steps.push({ op: 'divide', factor: f, reason: `Remove GST at the assumed ${a.gst_pct} percent`, assumption_key: 'gst_pct' });
-    keys.push('gst_pct');
+    if (stated != null) {
+      steps.push({ op: 'divide', factor: f, reason: `Remove GST at the vendor's stated ${stated} percent` });
+    } else {
+      steps.push({ op: 'divide', factor: f, reason: `Remove GST at the assumed ${a.gst_pct} percent`, assumption_key: 'gst_pct' });
+      keys.push('gst_pct');
+    }
   }
 
   // Unit

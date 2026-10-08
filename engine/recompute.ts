@@ -4,6 +4,8 @@
 // pipeline and for every later change (FX, GST, corrections), so the two can
 // never disagree.
 import { normalizePrice, specLengthMm } from './convert';
+import type { SizeCheck } from './dimensions';
+import { conflictText, resolveTax, type TaxResolution } from './tax';
 import { gradeMismatch, readTerms } from './terms';
 import type { Assumptions, BaseUom, ConversionStep, LineStatus, ReadConfidence, SourceType, UnitDefinition } from './types';
 import { assignStatus, lineFlags } from './verify';
@@ -47,6 +49,10 @@ export type StoredLine = {
   rfx_text?: string;
   /** The vendor's quote level notes (global notes). Read for the base board grade the prices are for. */
   vendor_notes?: string[];
+  /** Decided once at extraction, where every RFx line is at hand, and carried with the line. Absent on lines read before the check existed. */
+  size_check?: SizeCheck | null;
+  /** Set at extraction when another line of the same document is matched to the same RFx line. The text names that line. */
+  duplicate_rfx_match?: string | null;
 };
 
 export type LineResult = {
@@ -65,6 +71,8 @@ export type LineResult = {
   reasons: string[];
   confidence: number;
   buyer_verified: boolean;
+  /** What the price is quoted on and why. null for a line that inherits last year's rate. */
+  tax: TaxResolution | null;
 };
 
 /** Statements about how to read a document. A buyer who has seen the source can accept these. */
@@ -91,13 +99,17 @@ export function recomputeLine(l: StoredLine, a: Assumptions): LineResult {
   const price = o.price ?? l.price;
   const inherits = l.inherits_last_year && !edited;
 
-  const n = normalizePrice(
+  const tax = inherits ? null : resolveTax({ doc_basis: l.tax_basis, conditions: l.conditions ?? [], notes: l.vendor_notes ?? [] });
+  const n = tax?.contradiction
+    ? ({ ok: false, reason: 'tax_unresolved', detail: `This line says both included and extra: "${tax.contradiction.a}" and "${tax.contradiction.b}".` } as const)
+    : normalizePrice(
     {
       price,
       currency: o.currency ?? l.currency,
       uom_text: o.uom_text ?? l.uom_text,
       per_n: o.per_n ?? l.per_n,
-      tax_basis: l.tax_basis,
+      tax_basis: tax?.basis ?? l.tax_basis,
+      gst_rate_pct: tax?.rate_pct ?? null,
       inherits_last_year: inherits,
       base_uom: l.base_uom,
       last_year_rate_inr: l.last_year_rate_inr,
@@ -125,16 +137,35 @@ export function recomputeLine(l: StoredLine, a: Assumptions): LineResult {
     notes = n.notes;
     packSize = n.pack_size ?? null;
     packSource = n.pack_source ?? null;
-    if (l.tax_basis === 'unknown' && !inherits) keys.push('tax_basis_assumed_excl');
+    // Unchanged on purpose: a line that only says "GST extra" while the document basis is unknown stays Assumed, as before.
+    // Reading a stated "extra" as settled would lift lines to Confirmed that carry other unverified conditions.
+    if (tax && (tax.basis === 'unknown' || (tax.basis === 'excl_gst' && l.tax_basis === 'unknown'))) keys.push('tax_basis_assumed_excl');
   } else {
     unitKnown = !UNIT_PROBLEMS.includes(n.reason);
     flags.push(n.reason);
     error = { reason: n.reason, detail: n.detail };
   }
   if (edited) flags.push('buyer_edited');
+  const flagText: Record<string, string> = {};
+  if (tax?.contradiction) flagText.tax_unresolved = `${error?.detail ?? ''} The price is not converted, because an inclusive price must never be shown as an excluding GST price. Check the source.`.trim();
+  if (tax?.conflict) {
+    // The price is still read on this line's own statement and shown without GST; it just cannot be Confirmed.
+    const how = tax.basis === 'incl_gst' ? ` This line says GST is included${tax.rate_pct != null ? ` at ${tax.rate_pct} percent` : ''}, so the price is shown without GST.` : tax.basis === 'excl_gst' ? '' : ' This line has no tax statement of its own, so it is read as excluding GST.';
+    flags.push('tax_conflict');
+    keys.push('tax_basis_conflict');
+    flagText.tax_conflict = `${conflictText(tax.conflict)}${how}`;
+  }
+  if (!inherits && l.size_check?.kind === 'mismatch') {
+    flags.push('dimension_mismatch');
+    flagText.dimension_mismatch = l.size_check.message;
+  }
+  if (!inherits && l.duplicate_rfx_match) {
+    flags.push('duplicate_rfx_match');
+    flagText.duplicate_rfx_match = l.duplicate_rfx_match;
+  }
+  if (l.size_check?.kind === 'match') notes = [...notes, l.size_check.note];
 
   // The vendor's own terms next to the price. These decide whether the cell may be Confirmed; none changes a price.
-  const flagText: Record<string, string> = {};
   if (!inherits && price != null) {
     const found = readTerms(l.conditions ?? [], { price, annual_qty: l.annual_qty ?? null, base_uom: l.base_uom });
     if (found.conditional) {
@@ -208,6 +239,7 @@ export function recomputeLine(l: StoredLine, a: Assumptions): LineResult {
     reasons: decision.reasons,
     confidence: verified ? 1 : Math.min(l.match_confidence, READ_SCORE[l.read_confidence]),
     buyer_verified: verified,
+    tax,
   };
 }
 

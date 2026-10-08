@@ -1,5 +1,6 @@
 // Shapes returned by /api/*. Shared by the handlers and the React app.
 import type { CellStatus, CertaintyCounts, Readiness } from '../../engine/certainty';
+import type { SizeCheck } from '../../engine/dimensions';
 import type { ConversionTrace } from '../../engine/recompute';
 
 export type { CellStatus, CertaintyCounts, Readiness };
@@ -80,6 +81,9 @@ export type CellRaw = {
   /** RFx description and spec of the line, and the vendor's quote level notes from the cell's own document. The engine reads them for a stated piece length and a board grade. */
   rfx_text?: string;
   vendor_notes?: string[];
+  /** Size check and duplicate match decided at extraction (engine/dimensions.ts), carried so a recompute keeps them. */
+  size_check?: SizeCheck | null;
+  duplicate_rfx_match?: string | null;
 };
 
 export type GridCell = {
