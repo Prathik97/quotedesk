@@ -8,6 +8,7 @@ import { formatIndian } from '../../engine/format';
 import { cn } from '@/lib/utils';
 import { ExcelGrid, ImageFull, TextLines } from './sourceViews';
 import { Btn, Chip, ErrorBox, Loading, StoredLabel } from './ui';
+import { VendorNotes } from './VendorNotes';
 
 type Resp = DocumentPreview & { stored: import('@/lib/api-types').StoredRun };
 
@@ -143,6 +144,15 @@ export function SourceView() {
                 </table>
               </div>
             )}
+            {vendor && ((vendor.notes?.length ?? 0) > 0 || vendor.validity_warning) ? (
+              <div className="rounded-md border border-border bg-card p-3">
+                <h3 className="mb-1 text-sm font-semibold">Vendor notes</h3>
+                <p className="mb-1 text-xs text-muted-foreground">
+                  {vendor.validity_text ? `Validity: ${vendor.validity_text} ` : ''}{vendor.payment_terms_days != null ? `Payment: ${vendor.payment_terms_days} days.` : ''}
+                </p>
+                <VendorNotes notes={vendor.notes} warning={vendor.validity_warning} className="text-xs" />
+              </div>
+            ) : null}
             {activeLine ? (
               <Btn small onClick={() => { const c = data.cells.find((z) => z.quote_line_id === activeLine.quote_line_id); if (c) openCell(c.vendor_id, c.rfx_line_id, c.quote_line_id); }}>
                 Open full evidence for {activeLine.code}

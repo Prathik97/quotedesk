@@ -8,7 +8,7 @@ import type { CompareResponse, GridCell, VendorHeader } from './api-types';
 
 export type Patches = Record<string, LineOverrides>;
 
-export function deriveCell(cell: GridCell, base: { uom: string; ly: number | null }, a: Assumptions, patch?: LineOverrides): GridCell {
+export function deriveCell(cell: GridCell, base: { uom: string; ly: number | null; annual_qty?: number }, a: Assumptions, patch?: LineOverrides): GridCell {
   const raw = cell.raw;
   if (!raw || !cell.quote_line_id) return cell;
   const overrides = (patch ?? raw.overrides) as LineOverrides;
@@ -32,6 +32,10 @@ export function deriveCell(cell: GridCell, base: { uom: string; ly: number | nul
     evidence_locator: raw.evidence_locator,
     sticky_flags: raw.sticky_flags,
     overrides,
+    conditions: cell.conditions,
+    annual_qty: base.annual_qty ?? null,
+    rfx_text: raw.rfx_text ?? '',
+    vendor_notes: raw.vendor_notes ?? [],
   };
   const r = recomputeLine(stored, a);
   return {
@@ -52,7 +56,7 @@ export function deriveAll(d: CompareResponse, a: Assumptions, patches: Patches):
   const cells = d.cells.map((c) => {
     const l = lineById.get(c.rfx_line_id);
     if (!l) return c;
-    return deriveCell(c, { uom: l.uom, ly: l.ly_rate }, a, c.quote_line_id ? patches[c.quote_line_id] : undefined);
+    return deriveCell(c, { uom: l.uom, ly: l.ly_rate, annual_qty: l.annual_qty }, a, c.quote_line_id ? patches[c.quote_line_id] : undefined);
   });
   const vendors: VendorHeader[] = d.vendors.map((v) => {
     const mine = cells.filter((c) => c.vendor_id === v.id);

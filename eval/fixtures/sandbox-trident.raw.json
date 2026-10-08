@@ -1,0 +1,38 @@
+{
+ "file": {
+  "filename": "Trident_Boards_RFQ_response.eml",
+  "size_bytes": 1480,
+  "sha256": "00c1c8d1ac914f2ddd01971f6eef176c8c214feff294b6d14409af0501b59b2e"
+ },
+ "captured_with": {
+  "prompt": "extract.v3",
+  "note": "Raw model replies only. The vendor file itself is not stored."
+ },
+ "usage": {
+  "cost_inr": 2.8885632,
+  "model_calls": 2,
+  "tokens_in": 6279,
+  "tokens_out": 2678,
+  "repaired": false
+ },
+ "global_notes": [
+  "Cartons not priced; vendor wants final dimensions and board GSM, only a ~5% below last year indication.",
+  "Pallets have minimum order of 1000 pcs.",
+  "ISO certificate and lab details to follow separately; questionnaire not answered.",
+  "Rates stated as basic, GST extra, ex Hoskote works."
+ ],
+ "replies": [
+  {
+   "n": 1,
+   "max_tokens": 300,
+   "text": "```json\n{\"kind\": \"quote\", \"confidence\": 0.99, \"reason\": \"Document explicitly provides prices for multiple products (sheets, consumables, cartons, delivery) in response to an RFQ.\"}\n```",
+   "stop_reason": "end_turn"
+  },
+  {
+   "n": 2,
+   "max_tokens": 16000,
+   "text": "{\"document\":{\"kind\":\"quote\",\"vendor_name_as_written\":\"Trident Boards and Packaging LLP\",\"currency_default\":\"INR\",\"tax_basis\":\"excl_gst\",\"validity_text\":\"30 days\",\"freight_terms\":\"extra\",\"freight_note\":\"We can deliver to Bengaluru at Rs 1.5/kg on sheets (free above 10 MT). Other items ex-works.\",\"payment_terms_text\":\"45 days from invoice\",\"conditional_discounts\":[{\"text\":\"5 ply sheet 1100x1500 BF22: Rs 43.2/kg for 40 MT and above in a single dispatch, otherwise Rs 45.6/kg\",\"percent\":null,\"condition\":\"40 MT and above in a single dispatch\",\"applies_to\":\"SHT-5P-01\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L6\",\"quote\":\"5 ply sheet 1100x1500 BF22: Rs 43.2/kg for 40 MT and above in a single dispatch, otherwise Rs 45.6/kg\",\"read_confidence\":\"high\"}},{\"text\":\"5 ply sheet 1250x1800 BF25: Rs 44.8/kg on the same slab (40 MT or more), Rs 46.9/kg below that\",\"percent\":null,\"condition\":\"40 MT or more\",\"applies_to\":\"SHT-5P-02\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L7\",\"quote\":\"Rs 44.8/kg on the same slab (40 MT or more), Rs 46.9/kg below that\",\"read_confidence\":\"high\"}},{\"text\":\"BOPP tape clear 48mm x 50m: Rs 27 a roll if you take both tapes together, otherwise add Re 1\",\"percent\":null,\"condition\":\"both tapes (brown and clear) ordered together; otherwise add Re 1\",\"applies_to\":\"TPE-BOPP-02\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L12\",\"quote\":\"Rs 27 a roll if you take both tapes together, otherwise add Re 1\",\"read_confidence\":\"high\"}},{\"text\":\"Carton rates roughly 5 percent below last year's, subject to vendor confirmation\",\"percent\":5,\"condition\":\"indicative thumb rule, subject to confirmation, priced from final drawing and board GSM\",\"applies_to\":\"5 ply and 3 ply cartons\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L18\",\"quote\":\"you can budget roughly 5 percent below last year's rates for the 5 ply and 3 ply cartons, subject to our confirmation\",\"read_confidence\":\"high\"}}],\"global_notes\":[\"Cartons not priced; vendor wants final dimensions and board GSM, only a ~5% below last year indication.\",\"Pallets have minimum order of 1000 pcs.\",\"ISO certificate and lab details to follow separately; questionnaire not answered.\",\"Rates stated as basic, GST extra, ex Hoskote works.\"]},\"lines\":[{\"rfx_line_code\":\"SHT-5P-01\",\"match_confidence\":0.95,\"match_reason\":\"5 ply sheet 1100x1500 BF22 agree\",\"vendor_description\":\"5 ply sheet 1100x1500 BF22\",\"price\":45.6,\"currency\":\"INR\",\"uom_text\":\"/kg\",\"conditions\":[\"Rs 43.2/kg for 40 MT and above in a single dispatch\",\"Rs 45.6/kg otherwise\"],\"evidence\":{\"source_type\":\"email\",\"locator\":\"L6\",\"quote\":\"Rs 43.2/kg for 40 MT and above in a single dispatch, otherwise Rs 45.6/kg\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Price is the below-slab rate; slab rate 43.2 recorded in conditions.\"},{\"rfx_line_code\":\"SHT-5P-02\",\"match_confidence\":0.95,\"match_reason\":\"5 ply sheet 1250x1800 BF25 agree\",\"vendor_description\":\"5 ply sheet 1250x1800 BF25\",\"price\":46.9,\"currency\":\"INR\",\"uom_text\":\"/kg\",\"conditions\":[\"Rs 44.8/kg for 40 MT or more\",\"Rs 46.9/kg below that\"],\"evidence\":{\"source_type\":\"email\",\"locator\":\"L7\",\"quote\":\"Rs 44.8/kg on the same slab (40 MT or more), Rs 46.9/kg below that\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Price is the below-slab rate; slab rate 44.8 recorded in conditions.\"},{\"rfx_line_code\":\"SHT-3P-01\",\"match_confidence\":0.93,\"match_reason\":\"3 ply sheet 1000x1400 agree; BF not stated\",\"vendor_description\":\"3 ply sheet 1000x1400\",\"price\":39.1,\"currency\":\"INR\",\"uom_text\":\"/kg\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L8\",\"quote\":\"3 ply sheet 1000x1400: Rs 39.1/kg flat\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"TPE-BOPP-01\",\"match_confidence\":0.93,\"match_reason\":\"BOPP brown 48mm x 100m agree\",\"vendor_description\":\"BOPP tape brown 48mm x 100m\",\"price\":44.5,\"currency\":\"INR\",\"uom_text\":\"a roll\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L11\",\"quote\":\"BOPP tape brown 48mm x 100m: Rs 44.5 a roll\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"TPE-BOPP-02\",\"match_confidence\":0.93,\"match_reason\":\"BOPP clear 48mm x 50m agree\",\"vendor_description\":\"BOPP tape clear 48mm x 50m\",\"price\":27,\"currency\":\"INR\",\"uom_text\":\"a roll\",\"conditions\":[\"Rs 27 if both tapes taken together, otherwise add Re 1\"],\"evidence\":{\"source_type\":\"email\",\"locator\":\"L12\",\"quote\":\"Rs 27 a roll if you take both tapes together, otherwise add Re 1\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Price assumes both tapes together; otherwise Rs 28.\"},{\"rfx_line_code\":\"FLM-STR-01\",\"match_confidence\":0.8,\"match_reason\":\"Stretch film 23 micron; width not stated\",\"vendor_description\":\"Stretch film 23 micron\",\"price\":108,\"currency\":\"INR\",\"uom_text\":\"/kg\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L13\",\"quote\":\"Stretch film 23 micron: Rs 108/kg\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"STP-PET-01\",\"match_confidence\":0.93,\"match_reason\":\"PET strapping 15mm agree\",\"vendor_description\":\"PET strapping 15mm\",\"price\":126,\"currency\":\"INR\",\"uom_text\":\"/kg\",\"evidence\":{\"source_type\":\"email\",\"locator\":\"L14\",\"quote\":\"PET strapping 15mm: Rs 126/kg\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"PLT-WD-01\",\"match_confidence\":0.9,\"match_reason\":\"Heat treated pallet 1200x1000 agree\",\"vendor_description\":\"Heat treated pallets 1200x1000, ISPM-15\",\"price\":705,\"currency\":\"INR\",\"uom_text\":\"each\",\"conditions\":[\"minimum 1000 pcs\"],\"evidence\":{\"source_type\":\"email\",\"locator\":\"L15\",\"quote\":\"Heat treated pallets 1200x1000, ISPM-15: Rs 705 each, minimum 1000 pcs\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"}],\"questionnaire\":[]}",
+   "stop_reason": "end_turn"
+  }
+ ]
+}

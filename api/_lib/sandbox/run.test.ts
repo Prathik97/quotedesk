@@ -240,3 +240,32 @@ describe('upload rules for the sandbox', () => {
     expect(canonicalMime('noextension')).toBeNull();
   });
 });
+
+describe('vendor notes, validity and indicative statements are kept (F4)', () => {
+  const withNotes = extraction({
+    document: {
+      validity_text: 'Valid for 15 days',
+      payment_terms_text: '100% advance',
+      global_notes: ['Prices are on BF 20 board. BF 22 is charged extra at Rs 1 per carton.'],
+      conditional_discounts: [{ text: 'Carton rates roughly 5 percent below last year, subject to confirmation', percent: 5, condition: 'indicative', applies_to: 'cartons' }],
+    },
+  });
+  it('returns the notes and statements, warns on short validity, shows the statement beside unquoted lines and prices nothing from it', async () => {
+    const { p } = run(scripted([classification('quote'), withNotes]));
+    const r = await p;
+    expect(r.vendor_notes).toEqual(['Prices are on BF 20 board. BF 22 is charged extra at Rs 1 per carton.']);
+    expect(r.vendor_statements[0]?.text).toMatch(/roughly 5 percent below last year/);
+    expect(r.terms?.validity).toBe('Valid for 15 days');
+    expect(r.review.map((x) => x.kind)).not.toContain('short_validity'); // no RFx validity in this context
+  });
+  it('adds the short validity warning when the RFx validity is known', async () => {
+    const store = memoryStore();
+    const r = await runSandbox({ filename: 'reply.txt', mime: 'text/plain', bytes: new TextEncoder().encode(TEXT) }, { ...ctx, validity_days: 90 }, { client: scripted([classification('quote'), withNotes]), store }, { route: 'api:sandbox', session_id: 'budget', models: { fast: 'claude-haiku-4-5-20251001', extract: 'claude-sonnet-5-5' } });
+    const w = r.review.find((x) => x.kind === 'short_validity');
+    expect(w?.severity).toBe('warn');
+    expect(w?.message).toBe('Offer valid for 15 days, shorter than the 90 days the RFx asks for.');
+    expect(r.indicative['TPE-BOPP-01']).toBeUndefined();
+    expect(r.not_quoted).toContain('TPE-BOPP-01');
+    expect(r.lines.find((l) => l.code === 'TPE-BOPP-01')).toBeUndefined();
+  });
+});

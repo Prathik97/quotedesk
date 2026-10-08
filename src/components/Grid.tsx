@@ -1,5 +1,6 @@
 // The comparison grid (FR-6.1 to FR-6.3, FR-6.6): 30 lines by 5 vendors, with the
 // status vocabulary, vendor headers, lowest eligible price and the four toggles.
+import { VendorNotes } from './VendorNotes';
 import { Check, CircleCheck, Clock, OctagonX, Paperclip, Tag } from 'lucide-react';
 import { useMemo, useRef, type KeyboardEvent } from 'react';
 import { certaintyCounts, toCellStatus } from '../../engine/certainty';
@@ -378,6 +379,12 @@ function VendorDetails({ v, outcomes, excluded, onTab }: { v: VendorHeader; outc
       <div>
         Payment <span className="font-medium">{v.payment_terms_days != null ? `${v.payment_terms_days} days` : 'not stated'}</span>
       </div>
+      {v.validity_text ? (
+        <div>
+          Validity <span className="font-medium">{v.validity_text}</span>
+        </div>
+      ) : null}
+      <VendorNotes notes={v.notes} warning={v.validity_warning} compact />
       <button type="button" onClick={() => onTab('attachments')} className="inline-flex items-center gap-1 rounded hover:bg-muted">
         <Paperclip size={12} aria-hidden /> {v.attachments} {v.attachments === 1 ? 'attachment' : 'attachments'}
       </button>

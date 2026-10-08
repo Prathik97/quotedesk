@@ -17,6 +17,7 @@ import type {
   StoredRun,
   VendorHeader,
 } from '../../../src/lib/api-types.js';
+import { shortValidityWarning } from '../../../engine/terms.js';
 import { defaults } from './assumptions.js';
 
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -96,6 +97,8 @@ export async function loadCompare(pool: pg.Pool): Promise<CompareResponse> {
           sticky_flags: ((rw.flags ?? []) as string[]).filter((f) => ['from_hidden_sheet', 'unmatched', 'unknown_rfx_code'].includes(f)),
           overrides: rw.overrides ?? {},
           unit_definitions: defs.map((x) => ({ term: x.term, means_quantity: x.means_quantity ?? null, means_unit: x.means_unit ?? null, quote: x.evidence?.quote ?? null })),
+          rfx_text: [lineById.get(c.rfx_line_id)?.description, lineById.get(c.rfx_line_id)?.spec].filter(Boolean).join(' ; '),
+          vendor_notes: ((termsByVendor.get(c.vendor_id)?.global_notes ?? []) as Json[]).filter((x) => !x.document_id || x.document_id === rw?.doc).map((x) => String(x.text)),
         }
       : null,
     vendor_id: c.vendor_id,
@@ -163,6 +166,8 @@ export async function loadCompare(pool: pg.Pool): Promise<CompareResponse> {
       freight_amount_inr: num(t.freight_amount_inr),
       payment_terms_days: t.payment_terms_days ?? null,
       validity_text: t.validity_text ?? null,
+      validity_warning: shortValidityWarning(t.validity_text ?? null, num((raw.rfx as Json).validity_days)),
+      notes: [...new Set(((t.global_notes ?? []) as Json[]).map((n) => String(n.text)))],
       stated_total_inr: num(t.stated_total_inr),
       letterhead_name: t.letterhead_name ?? null,
       attachments: Number(s.attachment_count ?? vendorDocs.length),

@@ -4,6 +4,7 @@ import { FileUp, ShieldCheck } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { formatIndian } from '../../engine/format';
 import { Btn, Chip, ErrorBox, Loading, PageTitle } from '@/components/ui';
+import { VendorNotes } from '@/components/VendorNotes';
 import { api } from '@/lib/api';
 import { browserId } from '@/lib/browser';
 import { ACCEPT, MAX_MB, SandboxRefusal, uploadFile, type SandboxResponse, type SandboxResult } from '@/lib/sandbox';
@@ -106,10 +107,18 @@ function Result({ r }: { r: SandboxResult }) {
           {r.terms ? <Item k="Freight" v={`${r.terms.freight_terms}${r.terms.freight_note ? `, ${r.terms.freight_note}` : ''}`} /> : null}
           {r.terms ? <Item k="Tax basis" v={r.terms.tax_basis === 'excl_gst' ? 'Excluding GST' : r.terms.tax_basis === 'incl_gst' ? 'Including GST' : 'Not stated'} /> : null}
           {r.terms?.payment_terms ? <Item k="Payment terms" v={r.terms.payment_terms} /> : null}
+          {r.terms?.validity ? <Item k="Validity" v={r.terms.validity} /> : null}
           {r.terms?.stated_total_inr != null ? <Item k="Stated total" v={`Rs ${formatIndian(r.terms.stated_total_inr, 2)}`} /> : null}
           <Item k="This read cost" v={`Rs ${r.usage.cost_inr.toFixed(2)} (${r.usage.model_calls} model ${r.usage.model_calls === 1 ? 'call' : 'calls'}${r.usage.repaired ? ', one repair' : ''})`} />
         </dl>
       </section>
+
+      {(r.vendor_notes?.length ?? 0) + (r.vendor_statements?.length ?? 0) > 0 ? (
+        <section aria-label="Vendor notes" className="rounded-lg border border-border bg-card p-4">
+          <h2 className="mb-2 text-sm font-semibold">Vendor notes</h2>
+          <VendorNotes notes={r.vendor_notes} statements={r.vendor_statements} />
+        </section>
+      ) : null}
 
       {r.lines.length > 0 ? (
         <section aria-label="Lines read" className="rounded-lg border border-border bg-card">
@@ -143,7 +152,8 @@ function Result({ r }: { r: SandboxResult }) {
                     </td>
                     <td className="px-2 py-2 text-xs">
                       <Chip tone={STATUS[l.status]?.tone ?? 'neutral'}>{STATUS[l.status]?.label ?? l.status}</Chip>
-                      {l.reasons.slice(0, 2).map((x, k) => <div key={k} className="mt-1 text-muted-foreground">{x}</div>)}
+                      {l.reasons.slice(0, 3).map((x, k) => <div key={k} className="mt-1 text-muted-foreground">{x}</div>)}
+                      {(l.notes ?? []).map((x, k) => <div key={`n${k}`} className="mt-1 text-muted-foreground">{x}</div>)}
                       {l.flags.length ? <div className="mt-1 flex flex-wrap gap-1">{l.flags.map((f) => <Chip key={f} tone="warn">{f.replace(/_/g, ' ')}</Chip>)}</div> : null}
                     </td>
                     <td className="px-2 py-2 text-xs">
@@ -162,6 +172,16 @@ function Result({ r }: { r: SandboxResult }) {
         <section aria-label="Not quoted" className="rounded-lg border border-border bg-card px-4 py-3 text-sm">
           <h2 className="text-sm font-semibold">Not quoted ({r.not_quoted.length})</h2>
           <p className="mt-1 text-xs text-muted-foreground">No price for these RFx lines in this file. They stay missing, never zero: {r.not_quoted.join(', ')}.</p>
+          {Object.keys(r.indicative ?? {}).length > 0 ? (
+            <div className="mt-2">
+              <p className="text-xs font-medium">What the vendor said about some of them (indicative, not a price, never used)</p>
+              <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
+                {Object.entries(r.indicative ?? {}).map(([code, texts]) => (
+                  <li key={code}><span className="font-semibold tabular text-ink-2">{code}</span> {texts.join(' ')}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </section>
       ) : null}
 

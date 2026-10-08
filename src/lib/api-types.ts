@@ -51,6 +51,10 @@ export type VendorHeader = {
   freight_amount_inr: number | null;
   payment_terms_days: number | null;
   validity_text: string | null;
+  /** Set when the vendor's validity is shorter than the RFx asks for. Display only: it opens no review item and changes no cell. */
+  validity_warning?: string | null;
+  /** The vendor's quote level notes (global notes) from all its documents, as extracted. */
+  notes?: string[];
   stated_total_inr: number | null;
   letterhead_name: string | null;
   attachments: number;
@@ -73,6 +77,9 @@ export type CellRaw = {
   sticky_flags: string[];
   overrides: Record<string, unknown>;
   unit_definitions: { term: string; means_quantity: number | null; means_unit: string | null; quote: string | null }[];
+  /** RFx description and spec of the line, and the vendor's quote level notes from the cell's own document. The engine reads them for a stated piece length and a board grade. */
+  rfx_text?: string;
+  vendor_notes?: string[];
 };
 
 export type GridCell = {

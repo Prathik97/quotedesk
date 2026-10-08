@@ -60,7 +60,7 @@ export default route(['GET', 'POST'], async (req) => {
   if (!gate.ok) throw new ApiError(429, 'capped', gate.message, { reason: gate.reason, label: CAPPED_LABEL, uploads_left: await sandboxUploadsLeft(pool, req) });
 
   await pool.query('delete from sandbox_results where expires_at < now()');
-  const saved = (await pool.query<{ id: string }>('select id from rfx where is_saved_demo order by created_at limit 1')).rows[0];
+  const saved = (await pool.query<{ id: string; validity_days: number | null }>('select id, validity_days from rfx where is_saved_demo order by created_at limit 1')).rows[0];
   if (!saved) throw new ApiError(404, 'not_found', 'No saved RFx is loaded.');
   const [{ lines, questions }, assumptions] = await Promise.all([loadRfxContext(pool, saved.id), loadAssumptions(pool)]);
   const e = env();
@@ -68,7 +68,7 @@ export default route(['GET', 'POST'], async (req) => {
   try {
     result = await runSandbox(
       { filename: check.storage_name, mime: check.mime, bytes },
-      { lines, questions, assumptions },
+      { lines, questions, assumptions, validity_days: saved.validity_days },
       { client: { complete: (r) => realClient().complete(r) }, store: noCache(pgStore(pool)), dailyCapInr: e.DAILY_SPEND_CAP_INR, log: (l) => console.log(l) },
       { route: 'api:sandbox', session_id: budgetSessionId(), models: { fast: e.MODEL_FAST, extract: e.MODEL_EXTRACT } },
     );
