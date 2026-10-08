@@ -22,7 +22,7 @@ export const RESET_PER_IP_HOURLY = 3;
 export const RESET_GLOBAL_HOURLY = 20;
 
 export type CapReason = 'daily_cap' | 'ip_limit';
-export type ModelRoute = 'analyst' | 'extract' | 'decision';
+export type ModelRoute = 'analyst' | 'extract' | 'decision' | 'copilot' | 'outbox';
 
 export type Admission = { ok: true; ip_hash: string } | { ok: false; reason: CapReason; message: string };
 

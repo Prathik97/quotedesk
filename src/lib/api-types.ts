@@ -310,7 +310,7 @@ export type InboxMessage = {
   documents: DocumentRow[];
 };
 
-export type InboxResponse = { stored: StoredRun; messages: InboxMessage[] };
+export type InboxResponse = { stored: StoredRun; revealed: boolean; waiting: number; messages: InboxMessage[] };
 
 export type DocumentPreview = {
   document: DocumentRow;

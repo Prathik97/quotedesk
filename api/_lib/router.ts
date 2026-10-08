@@ -5,6 +5,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import analyst from './routes/analyst.js';
 import assumptions from './routes/assumptions.js';
 import compare from './routes/compare.js';
+import copilot from './routes/copilot.js';
 import decision from './routes/decision.js';
 import documents from './routes/documents.js';
 import exportRoute from './routes/export.js';
@@ -13,17 +14,19 @@ import extract from './routes/extract.js';
 import health from './routes/health.js';
 import inbox from './routes/inbox.js';
 import normalize from './routes/normalize.js';
+import outbox from './routes/outbox.js';
 import review from './routes/review.js';
 import ready from './routes/ready.js';
 import resetDemo from './routes/reset-demo.js';
 import rfx from './routes/rfx.js';
+import rfxDraft from './routes/rfx-draft.js';
 import usage from './routes/usage.js';
 import vendor from './routes/vendor.js';
 
 type Handler = (req: VercelRequest, res: VercelResponse) => Promise<void>;
 
 const routes: Record<string, Handler> = {
-  analyst, assumptions, compare, decision, documents, evidence, export: exportRoute, extract, health, inbox, normalize, ready, review, 'reset-demo': resetDemo, rfx, usage, vendor,
+  analyst, assumptions, compare, copilot, decision, documents, evidence, export: exportRoute, extract, health, inbox, normalize, outbox, ready, review, 'reset-demo': resetDemo, rfx, 'rfx-draft': rfxDraft, usage, vendor,
 };
 
 const known = (name: string | undefined): name is string => !!name && Object.prototype.hasOwnProperty.call(routes, name);

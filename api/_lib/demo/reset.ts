@@ -2,6 +2,7 @@
 //
 // Cleared:  buyer corrections and the overrides they wrote, buyer changes to FX and GST,
 //           review items a buyer dismissed or resolved (they reopen), and chat sessions.
+// Also cleared: co-pilot drafts, the emails they issued (the five saved FY27 emails stay) and inbox reveals.
 // Kept:     everything extraction produced (documents, extractions, quote lines as read,
 //           answers, terms), the seeded RFx, usage_log (spend is real), and the saved analyst
 //           chats from development, which are what visitors see when the spend cap is reached.
@@ -22,6 +23,9 @@ export type ResetSummary = {
   assumptions_restored: number;
   review_items_reopened: number;
   chats_cleared: number;
+  drafts_cleared: number;
+  outbox_cleared: number;
+  inbox_reveals_cleared: number;
   cells_changed_by_recompute: number;
   ms: number;
 };
@@ -46,6 +50,10 @@ export async function resetDemo(pool: pg.Pool): Promise<ResetSummary> {
     }
     const items = await c.query(`update review_items set state = 'open', resolution = null where state <> 'open'`);
     const chats = await c.query('delete from chat_sessions where not is_saved_demo');
+    // Co-pilot drafts, the emails they issued and the inbox reveals. The saved FY27 emails (is_saved) stay.
+    const outbox = await c.query('delete from outbox_emails where not is_saved');
+    const drafts = await c.query('delete from rfx_drafts');
+    const reveals = await c.query('delete from inbox_reveals');
     // The hourly limits only need an hour of history.
     await c.query(`delete from request_log where created_at < now() - interval '2 days'`);
     await c.query('commit');
@@ -55,6 +63,9 @@ export async function resetDemo(pool: pg.Pool): Promise<ResetSummary> {
       assumptions_restored: restored,
       review_items_reopened: items.rowCount ?? 0,
       chats_cleared: chats.rowCount ?? 0,
+      drafts_cleared: drafts.rowCount ?? 0,
+      outbox_cleared: outbox.rowCount ?? 0,
+      inbox_reveals_cleared: reveals.rowCount ?? 0,
     };
   } catch (e) {
     await c.query('rollback');

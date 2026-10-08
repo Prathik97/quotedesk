@@ -1,4 +1,4 @@
-import { BarChart3, Database, FileText, Inbox as InboxIcon, MessageSquare, Scale, ShieldCheck } from 'lucide-react';
+import { BarChart3, Database, FileText, Inbox as InboxIcon, MessageSquare, Scale, Send, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { EvidenceDrawer } from '@/components/EvidenceDrawer';
 import { Btn } from '@/components/ui';
@@ -11,10 +11,12 @@ import { Comparison } from '@/pages/Comparison';
 import { Decision } from '@/pages/Decision';
 import { Eval } from '@/pages/Eval';
 import { Inbox } from '@/pages/Inbox';
-import { IssuedRfx } from '@/pages/IssuedRfx';
+import { Outbox } from '@/pages/Outbox';
+import { Rfx } from '@/pages/Rfx';
 
 const STAGES: { id: Page; label: string; icon: typeof FileText; soon?: boolean }[] = [
-  { id: 'rfx', label: 'Issued RFx (saved)', icon: FileText },
+  { id: 'rfx', label: 'RFx', icon: FileText },
+  { id: 'outbox', label: 'Outbox', icon: Send },
   { id: 'inbox', label: 'Inbox', icon: InboxIcon },
   { id: 'comparison', label: 'Comparison', icon: BarChart3 },
   { id: 'analyst', label: 'Analyst', icon: MessageSquare },
@@ -69,8 +71,9 @@ function Shell() {
           </ul>
         </nav>
         <main className={cn('min-w-0 flex-1 overflow-auto p-5', selection && 'pr-[520px]')}>
-          {page === 'rfx' ? <IssuedRfx /> : null}
-          {page === 'inbox' ? <Inbox /> : null}
+          {page === 'rfx' ? <Rfx key={resetCount} /> : null}
+          {page === 'outbox' ? <Outbox key={resetCount} /> : null}
+          {page === 'inbox' ? <Inbox key={resetCount} /> : null}
           {page === 'comparison' ? <Comparison /> : null}
           {page === 'analyst' ? <Analyst key={resetCount} /> : null}
           {page === 'eval' ? <Eval /> : null}
@@ -85,7 +88,7 @@ function Shell() {
           small
           disabled={busy > 0}
           onClick={() => {
-            if (window.confirm('Reset the demo for everyone? This clears all corrections, assumption changes and chats. Extraction results are kept.')) void resetDemo();
+            if (window.confirm('Reset the demo for everyone? This clears all corrections, assumption changes, chats, RFx drafts, issued draft emails and the inbox replay. Extraction results and the saved FY27 emails are kept.')) void resetDemo();
           }}
         >
           Reset demo

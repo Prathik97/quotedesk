@@ -86,6 +86,92 @@ for (const p of ['/api/health', '/api/ready', '/api/usage', '/api/compare']) {
   if (!ok) failed++;
   console.log(`${ok ? 'PASS' : 'FAIL'} ${p} -> ${status}${note}`);
 }
+
+// Phase 6 routes, in no-model mode. A throwaway browser id drives a whole draft: new, save, template email,
+// a blocked issue, issue, outbox, pack PDF, then discard. The inbox reveal is switched on and off again.
+// The caps are 0 in this process, so the co-pilot route must refuse before any model code runs.
+{
+  const p = 'phase 6 routes (draft to issued RFx, outbox, inbox replay, co-pilot refusal)';
+  const problems = [];
+  const bid = `checkfunction${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  const post = async (path, body) => {
+    const r = await fetch(`${base}/api/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    return { status: r.status, json: await r.json().catch(() => null) };
+  };
+  const get = async (path) => {
+    const r = await fetch(`${base}/api/${path}`);
+    return { status: r.status, buf: Buffer.from(await r.arrayBuffer()), type: r.headers.get('content-type') ?? '' };
+  };
+  const json = (g) => { try { return JSON.parse(g.buf.toString('utf8')); } catch { return null; } };
+  let draftId = null;
+  try {
+    // The five saved emails and the saved pack.
+    const saved = json(await get('outbox'));
+    if (saved?.saved?.emails?.length !== 5) problems.push(`saved outbox has ${saved?.saved?.emails?.length ?? 'no'} emails, expected 5`);
+    else if (!saved.saved.emails.every((e) => e.source === 'saved' && e.status === 'sent (simulated)')) problems.push('saved emails are not labelled saved and simulated');
+    const savedPack = await get('outbox?pack=saved');
+    if (savedPack.status !== 200 || savedPack.buf.subarray(0, 5).toString('latin1') !== '%PDF-') problems.push('saved pack is not a PDF');
+
+    // The co-pilot is refused before any model call.
+    const cp = await post('copilot', { browser_id: bid, message: 'annual rate contract for corrugated cartons' });
+    if (cp.status !== 429 || cp.json?.error !== 'capped') problems.push(`co-pilot with caps at 0 returned ${cp.status}, expected 429 capped`);
+
+    // A draft, end to end, with no model.
+    const created = await post('rfx-draft', { action: 'new', browser_id: bid });
+    draftId = created.json?.draft?.id ?? null;
+    if (!draftId) problems.push('could not create a draft');
+    const rfx = {
+      terms: { title: 'Check function RFx', scope_summary: 'A throwaway RFx made by npm run check:function.', delivery_location: 'Bengaluru plant', payment_terms_days: 45, validity_days: 90, gst_basis: 'excl_gst', currency: 'INR', clarifications_by_day: 5, quotes_due_day: 14, award_by_day: 30 },
+      lines: [{ code: 'CAR-01', section: 'Cartons', description: '5 ply RSC carton 450x300x250 mm', spec: 'BF 22', uom: 'piece', pack_size: null, annual_qty: 1000 }],
+      questions: [{ code: 'Q1', text: 'Do you hold a valid ISO 9001 certificate?', answer_type: 'bool', is_knockout: true, pass_rule: { op: 'eq', value: true } }],
+    };
+    if (draftId) {
+      // Issue is blocked while an error remains.
+      const bad = structuredClone(rfx);
+      bad.terms.payment_terms_days = null;
+      await post('rfx-draft', { action: 'save', browser_id: bid, draft_id: draftId, rfx: bad });
+      const blocked = await post('rfx-draft', { action: 'issue', browser_id: bid, draft_id: draftId, subject: 'Subject', body: 'A body that is long enough to pass.' , source: 'template' });
+      if (blocked.status !== 422) problems.push(`issue with an error returned ${blocked.status}, expected 422`);
+      const saveOk = await post('rfx-draft', { action: 'save', browser_id: bid, draft_id: draftId, rfx });
+      if (saveOk.status !== 200 || saveOk.json?.validation?.can_issue !== true) problems.push('a valid RFx did not save as issuable');
+      const email = await post('rfx-draft', { action: 'email', browser_id: bid, draft_id: draftId, mode: 'template' });
+      if (email.status !== 200 || email.json?.source !== 'template' || !String(email.json?.body ?? '').includes('{{vendor_name}}')) problems.push('template email failed');
+      const issued = await post('rfx-draft', { action: 'issue', browser_id: bid, draft_id: draftId, subject: email.json?.subject ?? 'Subject', body: email.json?.body ?? '', source: 'template' });
+      if (issued.status !== 200 || issued.json?.draft?.emails?.length !== 5) problems.push(`issue created ${issued.json?.draft?.emails?.length ?? 0} emails, expected 5`);
+      else if (issued.json.draft.emails.some((e) => e.body.includes('{{vendor_name}}') || e.status !== 'sent (simulated)')) problems.push('issued emails are not personalised and simulated');
+      const again = await post('rfx-draft', { action: 'issue', browser_id: bid, draft_id: draftId, subject: 'Subject', body: 'A body that is long enough to pass.', source: 'template' });
+      if (again.status !== 409) problems.push(`a second issue returned ${again.status}, expected 409`);
+      const box = json(await get(`outbox?browser_id=${bid}`));
+      if (box?.drafts?.[0]?.emails?.length !== 5) problems.push('the outbox does not list the five draft emails');
+      const pack = await get(`outbox?pack=${draftId}&browser_id=${bid}`);
+      if (pack.status !== 200 || pack.buf.subarray(0, 5).toString('latin1') !== '%PDF-' || pack.buf.length < 2000) problems.push('draft pack is not a PDF');
+      const other = await get(`outbox?pack=${draftId}&browser_id=${bid}zz`);
+      if (other.status === 200) problems.push('another browser could download this pack');
+    }
+
+    // Inbox replay on, then off.
+    const before = json(await get(`inbox?browser_id=${bid}`));
+    if (before?.revealed !== false || before?.messages?.length !== 0) problems.push('the inbox was not hidden before Simulate');
+    await post('inbox', { action: 'simulate', browser_id: bid });
+    const on = json(await get(`inbox?browser_id=${bid}`));
+    if (on?.revealed !== true || on?.messages?.length !== 5) problems.push(`inbox after Simulate shows ${on?.messages?.length ?? 0} replies, expected 5`);
+    else if (JSON.stringify(on.messages.map((m) => m.arrival_day)) !== '[2,3,5,7,9]' && JSON.stringify(on.messages.map((m) => m.arrival_day).sort((a, b) => a - b)) !== '[2,3,5,7,9]') problems.push('arrival days are not 2, 3, 5, 7, 9');
+  } catch (e) {
+    problems.push(`threw ${e?.name ?? 'Error'}`);
+  } finally {
+    try {
+      await post('inbox', { action: 'hide', browser_id: bid });
+      if (draftId) await post('rfx-draft', { action: 'discard', browser_id: bid, draft_id: draftId });
+      const gone = await get(`outbox?browser_id=${bid}`);
+      if (json(gone)?.drafts?.length) problems.push('the check draft was not cleaned up');
+    } catch {
+      problems.push('cleanup failed');
+    }
+  }
+  const ok = problems.length === 0;
+  if (!ok) failed++;
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${p}${ok ? '' : ` -> ${problems.join('; ')}`}`);
+}
 server.close();
 // pg pools keep the process alive otherwise.
 process.exit(failed ? 1 : 0);

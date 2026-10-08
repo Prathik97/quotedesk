@@ -1,18 +1,35 @@
 // Read only page of the saved RFx. Labelled "Issued RFx (saved)".
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { formatInrCompact, formatIndian, formatQty } from '../../engine/format';
 import { api } from '@/lib/api';
 import type { RfxResponse } from '@/lib/api-types';
-import { Chip, ErrorBox, Loading, PageTitle } from '@/components/ui';
+import { Btn, Chip, ErrorBox, Loading } from '@/components/ui';
 
 export function IssuedRfx() {
   const [r, setR] = useState<RfxResponse | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  useEffect(() => {
-    api<RfxResponse>('rfx').then(setR).catch((e: Error) => setErr(e.message));
-  }, []);
-  if (err) return <ErrorBox message={err} />;
-  if (!r) return <Loading what="the saved RFx" />;
+  const [loading, setLoading] = useState(false);
+  const load = () => {
+    setLoading(true);
+    setErr(null);
+    api<RfxResponse>('rfx')
+      .then(setR)
+      .catch((e: Error) => setErr(e.message))
+      .finally(() => setLoading(false));
+  };
+  if (err) return <ErrorBox message={err} onRetry={load} />;
+  if (loading) return <Loading what="the saved RFx" />;
+  if (!r) {
+    return (
+      <div className="max-w-2xl space-y-3 rounded-lg border border-border bg-card p-5">
+        <h2 className="text-base font-semibold">The saved FY27 RFx</h2>
+        <p className="text-sm text-ink-2">
+          The vendor replies in this demo answer the saved FY27 RFx, not a draft you write here. Load it to see what the five vendors were asked.
+        </p>
+        <Btn variant="primary" onClick={load}>Load issued RFx (saved FY27)</Btn>
+      </div>
+    );
+  }
   const sections: { name: string; lines: RfxResponse['lines'] }[] = [];
   for (const l of r.lines) {
     const g = sections[sections.length - 1];
@@ -22,11 +39,13 @@ export function IssuedRfx() {
   const x = r.rfx;
   return (
     <div className="space-y-5">
-      <PageTitle
-        title="Issued RFx (saved)"
-        sub="Read only. This is the saved RFx the vendor replies were generated against. Drafting a new one arrives with the co-pilot."
-        right={<Chip tone="accent">Saved, read only</Chip>}
-      />
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">Read only. The saved RFx the vendor replies answer. It is never changed by drafts.</p>
+        <span className="flex items-center gap-2">
+          <a className="text-sm font-medium text-accent underline" href="/api/outbox?pack=saved">Download RFx pack (PDF)</a>
+          <Chip tone="accent">Saved, read only</Chip>
+        </span>
+      </div>
       <section aria-label="RFx summary" className="rounded-lg border border-border bg-card p-4">
         <h2 className="text-base font-semibold">{x.title}</h2>
         <dl className="mt-3 grid grid-cols-2 gap-x-8 gap-y-2 text-sm md:grid-cols-4">

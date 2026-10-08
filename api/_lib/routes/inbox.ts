@@ -3,10 +3,27 @@ import type { InboxResponse } from '../../../src/lib/api-types.js';
 import { pipelineOf, storedRun } from '../compare/data.js';
 import { loadDocuments } from '../compare/docs.js';
 import { db } from '../db.js';
-import { route } from '../http.js';
+import { z } from 'zod';
+import { BrowserId } from '../copilot/drafts.js';
+import { ApiError, route } from '../http.js';
 
-export default route(['GET'], async (): Promise<InboxResponse> => {
+// GET  /api/inbox?browser_id=X        the vendor replies, once this browser has pressed "Simulate vendor replies"
+// POST /api/inbox {action:'simulate'}  reveals the stored replies for this browser (no model call)
+// POST /api/inbox {action:'hide'}      puts this browser back to the unrevealed state
+// The replies are the stored real extraction results. Revealing them only records that fact.
+const Post = z.object({ browser_id: BrowserId, action: z.enum(['simulate', 'hide']) });
+
+export default route(['GET', 'POST'], async (req): Promise<InboxResponse | { ok: true }> => {
   const pool = db();
+  if (req.method === 'POST') {
+    const p = Post.safeParse(req.body);
+    if (!p.success) throw new ApiError(400, 'bad_request', p.error.issues[0]?.message ?? 'Send { browser_id, action } as JSON.');
+    if (p.data.action === 'simulate') await pool.query('insert into inbox_reveals (browser_id) values ($1) on conflict (browser_id) do nothing', [p.data.browser_id]);
+    else await pool.query('delete from inbox_reveals where browser_id = $1', [p.data.browser_id]);
+    return { ok: true };
+  }
+  const bid = BrowserId.safeParse(req.query.browser_id);
+  const revealed = bid.success ? ((await pool.query('select 1 from inbox_reveals where browser_id = $1', [bid.data])).rowCount ?? 0) > 0 : false;
   const [meta, docs] = await Promise.all([
     pool.query<{ d: Record<string, any> }>(`select jsonb_build_object(
       'vendors', (select coalesce(jsonb_agg(jsonb_build_object('id', v.id, 'key', v.vendor_key, 'name', v.name, 'from', v.contact_email,
@@ -16,6 +33,7 @@ export default route(['GET'], async (): Promise<InboxResponse> => {
     loadDocuments(pool),
   ]);
   const d = meta.rows[0]?.d ?? {};
+  const waiting = (d.vendors as unknown[]).length;
   const messages = (d.vendors as Record<string, any>[]).map((v) => {
     const mine = docs.filter((x) => x.vendor_id === v.id);
     return {
@@ -31,5 +49,6 @@ export default route(['GET'], async (): Promise<InboxResponse> => {
       documents: mine.map(({ storage_path: _p, message: _m, ...doc }) => doc),
     };
   });
-  return { stored: storedRun(d.usage), messages };
+  // Until the buyer presses Simulate, no reply has "arrived": the stored data is held back, not deleted.
+  return { stored: storedRun(d.usage), revealed, waiting, messages: revealed ? messages : [] };
 });
