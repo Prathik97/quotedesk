@@ -8,7 +8,7 @@ Real email sending and receiving, authentication and multi tenancy, vendor porta
 ## Cut in phase 1 (2026-10-07), to hold the 3 hour budget
 - **ESLint and Prettier.** `tsc --noEmit` in strict mode is the only static gate for now.
 - **shadcn components beyond init.** `components.json` and `cn` exist; components are added when a screen needs them.
-- **README depth.** A short README now; the full setup and architecture guide comes in phase 8.
+- **README depth.** A short README now; the full setup and architecture guide comes in phase 8. Superseded: the README has setup, scripts and architecture, and a five line summary at the top.
 - **Lab test report and company profile PDFs (V1, V2) and the FSC certificate (V1).** No edge in E1 to E13 depends on them. ISO certificates for all five vendors and the GST certificate for V3 are kept, because E6 and E8 need them.
 
 ## Deferred
@@ -30,7 +30,7 @@ Real email sending and receiving, authentication and multi tenancy, vendor porta
 - **Vendor level and line level assumption scopes.** Only the global FX and GST are editable; the `assumptions` table supports more.
 - **Undo for FX edits and an audit log of assumption changes.** FX can be reset to the default; only line corrections are logged.
 - **Corrections survive re-extraction.** Re-running a document replaces its lines and drops their overrides and corrections. Fine for now; to revisit with the inbox.
-- **Eval page in the app.** `eval/EVAL_REPORT.md` exists; the page is not built.
+- **Eval page in the app.** `eval/EVAL_REPORT.md` exists; the page is not built. Superseded: the Evaluation page was built (D64).
 - **Needs review cells in the stored data.** The stored run produced none, so that part of the queue shows empty. It is exercised by unit tests, not by the live data.
 
 ## Cut or deferred in phase 5 (2026-10-08)
@@ -49,12 +49,12 @@ Real email sending and receiving, authentication and multi tenancy, vendor porta
 - **Counting model calls per IP.** The hourly limit counts requests to model routes; one analyst turn can make several model calls. The daily cap bounds the money.
 - **An exact cap.** Two requests admitted at the same moment near the cap can overshoot it by their worst cases together. The Rs 12 door margin keeps this small.
 - **Automatic switch to stored mode on an API outage.** A failed model call shows a friendly error and nothing stored is touched (D59), but only a cap, not an outage, switches the page to the stored runs view.
-- **Upload route and signed upload URLs.** No route accepts a file yet; the validator is ready (D61). The route comes with the inbox in phase 6.
+- **Upload route and signed upload URLs.** No route accepts a file yet; the validator is ready (D61). The route comes with the inbox in phase 6. Superseded: Try your file takes 4 MB uploads through the function (D95); signed upload URLs (D9) were not used.
 - **Live eval page.** It shows the committed report (D64), not the latest `eval_runs` row.
 - **Stable order after Reset demo** for open items with equal value at stake.
 - **Cleaning up visitors' chats before Reset.** Chats from visitors stay in the database until someone uses Reset demo.
-- **Anything proven on real Vercel.** Function bundling, the bracketed catch all file, `includeFiles`, streaming on the live runtime and the TypeScript 7 build of the function are verified only on the first deploy (D62).
-- **README setup and architecture guide, production seed run and the Loom walkthrough.** Still phase 8; `DEPLOY.md` covers deploying.
+- **Anything proven on real Vercel.** Function bundling, the bracketed catch all file, `includeFiles`, streaming on the live runtime and the TypeScript 7 build of the function are verified only on the first deploy (D62). Update: the app is deployed at https://quotedesk-sandy.vercel.app and small uploads ran there. Streaming of the co-pilot and large uploads are still checked only under local Node 22.
+- **README setup and architecture guide, production seed run and the Loom walkthrough.** Still phase 8; `DEPLOY.md` covers deploying. Superseded: the README now has setup and architecture. DEPLOY.md covers deploying. The Loom walkthrough is not in the repo.
 
 ## Cut or deferred in Phase 7 (2026-10-08)
 - **DOCX memo.** PDF and xlsx only (the brief allows PDF plus a DOCX or an xlsx appendix).
@@ -73,7 +73,7 @@ Real email sending and receiving, authentication and multi tenancy, vendor porta
 - **Anything proven on real Vercel.** That `pdf-lib` is traced into the function and the 60 second duration is enough are checked only locally (plain Node 22 with the built function) until the deploy.
 
 ## Cut or deferred in Phase 6 (2026-10-08)
-- **Real uploads of the owner's files through Try your file.** None were provided, so Part C has not run against the real model. Everything else about it is tested (D98).
+- **Real uploads of the owner's files through Try your file.** None were provided, so Part C has not run against the real model. Everything else about it is tested (D98). Superseded: Metro Kraft, Trident and the Gupta chat have since run through the real model (D100, D116, D120, D127, D129).
 - **Part C reads one file and decides nothing about a vendor.** No stated total reconciliation (`total_mismatch`), no knockout verdict, no certificate against letterhead check and no photo crop: those need the whole reply set or a second step. It lists lines, units, statuses, evidence, flags, review items, the questionnaire answers read and a certificate's facts.
 - **Larger uploads for Try your file.** 4 MB, through the function. A signed Storage URL (which would allow the 10 MB the brief names) was not simple enough here, and the validator's 10 MB limit still stands for any future upload into the real inbox.
 - **Upload into the real inbox, and duplicate detection by sha256 (FR-3.3, FR-3.4).** Try your file is the only upload and never touches the inbox, by design. The replay and the saved replies are read only.
@@ -104,10 +104,16 @@ Real email sending and receiving, authentication and multi tenancy, vendor porta
 - **A model field for the tax basis and rate per line.** The schema has none and the prompt was not changed, because the model had captured the text. Only worth adding if the regular expressions miss real phrasing.
 - **Held out evaluation.** Still none. The WhatsApp file is used up (D109).
 - **A way for the buyer to settle a Not derived tax line in the app.** Deliberately not built: an edited value or a buyer check does not clear it (same as a line that contradicts itself). Needs a decision on who may state the basis.
-- **Running the fixed tax guard live.** The live budget was spent on the run that exposed the gap (D120). The fix was verified by replay of that reply only.
+- **Running the fixed tax guard live.** The live budget was spent on the run that exposed the gap (D120). The fix was verified by replay of that reply only. Done later: D127 and D129.
 - **Moving the stored pipeline to `extract.v4`.** It would orphan the cached replies of the stored run and change what a re-extraction costs. Try your file only for now.
-- **A line level scope for statements in tables.** Statements are matched to a line by product words. A column of "GST extra" next to each row of a spreadsheet is read as the line's own text only when the extraction used it as evidence or a condition.
-- **Checking which column a price came from.** On a dual column sheet (basic and incl tax columns) code detects the layout and ignores informational notes, but does not compare the evidence cell's column with the basic column. It would need a new flag and a change to the review reasons.
-- **Storing the vendor file text with the fixtures.** Replay would then include header rows and notes exactly as the model saw them, which would have caught K1. Left out because the vendor files are not kept in the repo (D120).
+- **A line level scope for statements in tables.** Statements are matched to a line by product words. A column of "GST extra" next to each row of a spreadsheet is read as the line's own text only when the extraction used it as evidence or a condition. Superseded for spreadsheets by D128: a price cell is read under its own column header.
+- **Checking which column a price came from.** On a dual column sheet (basic and incl tax columns) code detects the layout and ignores informational notes, but does not compare the evidence cell's column with the basic column. It would need a new flag and a change to the review reasons. Done for spreadsheets by K5b (D128).
+- **Storing the vendor file text with the fixtures.** Replay would then include header rows and notes exactly as the model saw them, which would have caught K1. Left out because the vendor files are not kept in the repo (D120). Done for the Metro Kraft sheet (eval/fixtures/sandbox-metro-kraft.sheet.txt, D128); the Gupta chat and Trident email text are still not stored.
 - **Translating informational wording in other languages.** "For convenience" style wording is matched in English only.
 
+
+
+## Cut or deferred in the final session (K5)
+- **Header bases for Word tables, PDFs and photos.** Only spreadsheets are read by column header. Other inputs keep the document level tax logic (limitation 19).
+- **A header word list beyond English tax wording.** Another language or an unusual phrase states nothing and the line falls back to the existing logic.
+- **Any further code change.** The code is frozen after K5.

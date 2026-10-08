@@ -1,5 +1,11 @@
 # QuoteDesk
 
+QuoteDesk reads messy vendor quotes into one evidence backed price comparison; the model reads, deterministic code does all arithmetic.
+Live: https://quotedesk-sandy.vercel.app
+Run it: Node 22, then `npm install`, `npm run dev` (full setup below), and `npm test` for the suite.
+Unseen file tests: a Metro Kraft sheet, a Trident email and a Gupta WhatsApp chat were run through Try your file and fixed; none is held out any more.
+More: [NOTE_INPUT.md](NOTE_INPUT.md) for decisions, left out items and limitations.
+
 QuoteDesk turns five messy vendor replies (an Excel sheet, a PDF, a Word file, a phone photo and an email) into one normalized, evidence backed comparison, then lets a buyer question it in plain language all the way to an award and a decision pack. The model reads documents. Deterministic code does every calculation. Every extracted number carries its evidence (file, cell or line, and the quoted text), and a number that is missing is shown as Not quoted, never as zero.
 
 The app has these pages: Comparison (grid, evidence drawer, review queue, questionnaire, attachments, source view), Analyst (chat that calls the same award engine), Decision (scenario, sensitivity, memo and appendix), RFx (co-pilot that drafts a new RFx), Outbox and Inbox (simulated email, nothing is sent), Try your file (read one file of your own, isolated from the comparison) and Evaluation.
@@ -71,7 +77,7 @@ npm run check:function        # run on Node 22 before every push
 - Model output varies between runs, so one run is one sample.
 - Photo sourced prices are never Confirmed; a person must check the crop.
 - Certificates are read for facts only; a forged certificate would not be detected.
-- Prices that depend on a slab or dispatch condition are shown as Assumed with the alternate price. A board grade that differs from the RFx line goes to Needs review with the vendor's own surcharge text and no adjusted price. A price the vendor says includes GST is divided by the vendor's stated rate (the assumed rate only when none is stated), conflicting tax statements cap the line at Assumed, and a box whose size fits another RFx line of the same ply better is flagged, not re-mapped.
+- Prices that depend on a slab or dispatch condition are shown as Assumed with the alternate price. A board grade that differs from the RFx line goes to Needs review with the vendor's own surcharge text and no adjusted price. A price the vendor says includes GST is divided by the vendor's stated rate (the assumed rate only when none is stated), conflicting tax statements cap the line at Assumed, a spreadsheet price is read under its own column header (a basic or excl header is the quote, an incl header is divided out, the model's notes never override a header), a line whose tax basis cannot be settled is Not derived,  and a box whose size fits another RFx line of the same ply better is flagged, not re-mapped.
 - The demo is a shared database: Reset demo clears everyone's drafts and Try your file results. No email is sent.
-- The first real run of the streaming co-pilot and of large uploads on Vercel is the final test of the deployment; see DEPLOY.md.
+- The app is deployed and small uploads ran on Vercel. Streaming of the co-pilot and large uploads are checked only under local Node 22; see DEPLOY.md.
 - Everything deliberately not built is listed in `LEFT_OUT.md`.
