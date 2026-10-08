@@ -381,7 +381,7 @@ function VendorDetails({ v, outcomes, excluded, onTab }: { v: VendorHeader; outc
       </div>
       {v.validity_text ? (
         <div>
-          Validity <span className="font-medium">{v.validity_text}</span>
+          Validity <span className="font-medium">{v.validity_text.replace(/^validity:?\s*/i, '')}</span>
         </div>
       ) : null}
       <VendorNotes notes={v.notes} warning={v.validity_warning} compact />

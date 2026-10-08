@@ -38,7 +38,7 @@ export function RfxEditor({ rfx, validation, onChange, locked }: Props) {
 
   return (
     <div className="space-y-5">
-      <Findings v={validation} />
+      <Findings v={validation} hasContent={hasContent(rfx)} />
 
       <Section title="Scope and terms">
         <label className="block text-xs text-muted-foreground">
@@ -200,7 +200,24 @@ function RuleEditor({ q, locked, bad, onChange }: { q: DraftQuestion; locked: bo
   );
 }
 
-function Findings({ v }: { v: Validation }) {
+/** The draft has something to validate: a line, a question, or any term the buyer or the co-pilot has filled in. */
+export function hasContent(rfx: DraftRfx): boolean {
+  const { currency, ...terms } = rfx.terms;
+  void currency;
+  return rfx.lines.length > 0 || rfx.questions.length > 0 || Object.values(terms).some((x) => x != null && x !== '');
+}
+
+function Findings({ v, hasContent: started }: { v: Validation; hasContent: boolean }) {
+  if (!started) {
+    return (
+      <details className="rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+        <summary className="cursor-pointer font-medium">
+          <span role="status">Validation: nothing to check yet. It starts when the draft has content.</span>
+        </summary>
+        <p className="mt-2">Once the draft has lines, questions or terms, this panel lists any errors and warnings and says whether the RFx can be issued.</p>
+      </details>
+    );
+  }
   if (v.findings.length === 0) {
     return (
       <div role="status" className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-status-confirmed">
