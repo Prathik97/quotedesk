@@ -4,6 +4,7 @@
 //   1. total cost with the USD rate at 85, 96 and 105, with and without the conditional discount
 //   2. the cost if the top vendor is lost (the same scenario re run without that vendor)
 import { AwardError, simulateAward, type AwardInput, type AwardResult, type Scenario } from './award';
+import { formatIndian } from './format';
 import type { Assumptions } from './types';
 
 export const FX_SWEEP = [85, 96, 105];
@@ -45,8 +46,33 @@ export type Sensitivity = {
   /** True when at least one eligible vendor has a conditional discount, so the two columns can differ. */
   discount_in_play: boolean;
   discount_note: string;
+  /** One sentence, built from the two runs, saying the with discount column is a different allocation. Null when the discount changes nothing. */
+  with_discount_note: string | null;
   top_vendor_lost: TopVendorLost | null;
 };
+
+/**
+ * The with discount column is not the no discount allocation at lower prices: the discount changes who wins some lines,
+ * and the vendor's PO then clears its threshold. Every figure in the sentence comes from the two runs.
+ */
+function withDiscountNote(input: AwardInput, scenario: Scenario): string | null {
+  let off: AwardResult;
+  let on: AwardResult;
+  try {
+    off = simulateAward(input, { ...scenario, filters: { ...scenario.filters, apply_discounts: false } });
+    on = simulateAward(input, { ...scenario, filters: { ...scenario.filters, apply_discounts: true } });
+  } catch (e) {
+    if (e instanceof AwardError) return null;
+    throw e;
+  }
+  const d = on.discounts.find((x) => x.applied && x.threshold_inr != null && x.saving_inr > 0.005);
+  if (!d || on.totals.goods_total_inr >= off.totals.goods_total_inr - 0.005) return null;
+  const offWinner = new Map(off.allocation.map((a) => [a.line_code, a.vendor_key]));
+  const gained = on.allocation.filter((a) => a.vendor_key === d.vendor_key && offWinner.get(a.line_code) !== d.vendor_key).map((a) => a.line_code);
+  if (gained.length === 0) return null;
+  const shown = gained.length > 6 ? `${gained.slice(0, 6).join(', ')} and ${gained.length - 6} more` : gained.join(', ');
+  return `The with discount column is a different allocation, not the same one at lower prices: at the current rate ${d.vendor_key} wins ${gained.length} more ${gained.length === 1 ? 'line' : 'lines'} (${shown}), its PO of Rs ${formatIndian(d.vendor_po_value_inr, 0)} clears the Rs ${formatIndian(d.threshold_inr as number, 0)} threshold, and the ${d.percent} percent discount then applies, which lowers the goods total by Rs ${formatIndian(off.totals.goods_total_inr - on.totals.goods_total_inr, 0)}.`;
+}
 
 function cellOf(input: AwardInput, s: Scenario): { cell: SensitivityCell; result: AwardResult | null } {
   try {
@@ -136,5 +162,5 @@ export function runSensitivity(makeInput: (a: Assumptions) => AwardInput, curren
     };
   }
 
-  return { assumptions: current, fx, fx_note, discount_in_play: withDiscount.length > 0, discount_note, top_vendor_lost: lost };
+  return { assumptions: current, fx, fx_note, discount_in_play: withDiscount.length > 0, discount_note, with_discount_note: withDiscount.length > 0 ? withDiscountNote(inputNow, scenario) : null, top_vendor_lost: lost };
 }

@@ -28,6 +28,29 @@ export type ScenarioReadiness = {
   summary: string;
 };
 
+/** The two ways a vendor document can carry an injection attempt. One document with both is one open item, not two. */
+export const HIDDEN_CONTENT_KINDS = ['suspicious_content', 'low_visibility_text'];
+export const HIDDEN_CONTENT_KIND = 'hidden_instructions';
+export const HIDDEN_CONTENT_MESSAGE = 'A vendor document contained near invisible text and instruction like text. Both were ignored.';
+
+/** Replaces a vendor's near invisible text item and instruction like text item with one item. A vendor with only one of them is left alone. */
+export function mergeHiddenContent<T extends { vendor_key: string | null; kind: string }>(items: T[], merged: (vendor_key: string | null) => T): T[] {
+  const vendors = new Set(items.filter((i) => HIDDEN_CONTENT_KINDS.includes(i.kind)).map((i) => i.vendor_key));
+  const both = [...vendors].filter((v) => HIDDEN_CONTENT_KINDS.every((k) => items.some((i) => i.vendor_key === v && i.kind === k)));
+  if (both.length === 0) return items;
+  const out: T[] = [];
+  const done = new Set<string | null>();
+  for (const i of items) {
+    if (HIDDEN_CONTENT_KINDS.includes(i.kind) && both.includes(i.vendor_key)) {
+      if (!done.has(i.vendor_key)) {
+        done.add(i.vendor_key);
+        out.push(merged(i.vendor_key));
+      }
+    } else out.push(i);
+  }
+  return out;
+}
+
 /** Kinds already judged from the cells and the questionnaire, so they are not listed twice. */
 const JUDGED_ELSEWHERE = ['knockout_pending', 'line_needs_review', 'conflict'];
 
@@ -49,6 +72,7 @@ export function judgeScenario(included: ReadinessVendor[], extras: { assumed_cel
   }
   if (extras.assumed_cells > 0) open.push({ vendor_key: null, kind: 'assumed_cells', message: `${extras.assumed_cells} ${extras.assumed_cells === 1 ? 'cell is' : 'cells are'} Assumed.` });
   if (extras.gaps > 0) open.push({ vendor_key: null, kind: 'coverage_gaps', message: `${extras.gaps} ${extras.gaps === 1 ? 'line is' : 'lines are'} not covered.` });
+  open.splice(0, open.length, ...mergeHiddenContent(open, (vendor_key) => ({ vendor_key, kind: HIDDEN_CONTENT_KIND, message: HIDDEN_CONTENT_MESSAGE })));
   const level: ScenarioReadiness['level'] = blockers.length > 0 ? 'not_ready' : open.length > 0 ? 'ready_with_open_items' : 'ready';
   return {
     level,

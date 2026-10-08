@@ -159,6 +159,7 @@ export function memoBlocks(p: PackData, note: NoteResult): Block[] {
   });
   b.push({ t: 'p', small: true, muted: true, text: p.sensitivity.fx_note });
   b.push({ t: 'p', small: true, muted: true, text: p.sensitivity.discount_note });
+  if (p.sensitivity.with_discount_note) b.push({ t: 'p', small: true, muted: true, text: p.sensitivity.with_discount_note });
   const lost = p.sensitivity.top_vendor_lost;
   b.push({ t: 'h3', text: 'If the top vendor is lost' });
   if (!lost) b.push(none('No vendor holds any award, so there is nothing to lose.'));

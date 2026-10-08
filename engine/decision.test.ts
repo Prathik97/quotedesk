@@ -107,3 +107,18 @@ describe('top vendor lost', () => {
     expect(t.new_top_vendor).not.toBe('VF');
   });
 });
+
+describe('the with discount column is a different allocation', () => {
+  it('says which vendor wins more lines, that its PO clears the threshold and what it saves, all from the two runs', () => {
+    const s = runSensitivity(makeInput, at96, DEFAULT_SCENARIO, base());
+    // No discount at 96: VA L1 (900) + VB L2 (950) = 1,850. With the discount VA wins L2 too: PO 900 + 1,050 = 1,950 clears 1,500.
+    // Goods fall to 1,755, which is 95 lower.
+    expect(s.with_discount_note).toBe(
+      'The with discount column is a different allocation, not the same one at lower prices: at the current rate VA wins 1 more line (L2), its PO of Rs 1,950 clears the Rs 1,500 threshold, and the 10 percent discount then applies, which lowers the goods total by Rs 95.',
+    );
+  });
+  it('is absent when no vendor has a discount', () => {
+    const noDisc = (a: Assumptions): AwardInput => ({ ...makeInput(a), vendors: makeInput(a).vendors.map((v) => ({ ...v, discounts: [] })) });
+    expect(runSensitivity(noDisc, at96, DEFAULT_SCENARIO, simulateAward(noDisc(at96), DEFAULT_SCENARIO)).with_discount_note).toBeNull();
+  });
+});

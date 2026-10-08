@@ -11,7 +11,7 @@ import { STATUS_LABEL, toCellStatus } from '../../../engine/certainty.js';
 import { runSensitivity, type Sensitivity } from '../../../engine/decision.js';
 import { assumptionText, flagText } from '../../../engine/explain.js';
 import { formatIndian, formatInrCompact } from '../../../engine/format.js';
-import type { ScenarioReadiness } from '../../../engine/readiness.js';
+import { HIDDEN_CONTENT_KIND, HIDDEN_CONTENT_MESSAGE, mergeHiddenContent, type ScenarioReadiness } from '../../../engine/readiness.js';
 import type { Assumptions } from '../../../engine/types.js';
 import type { AnswerCell, Attachment } from '../../../src/lib/api-types.js';
 import { awardInputFromCompare, globalAssumptionsOf, safeMessage } from '../../../src/lib/awardInput.js';
@@ -176,6 +176,7 @@ const KIND_NEXT_STEP: Record<string, string> = {
   attachment_name_mismatch: 'Check which legal entity will invoice and whether the certificate belongs to it.',
   suspicious_content: 'Read the flagged vendor document. Instruction-like text in it was ignored, and the vendor should be asked about it.',
   low_visibility_text: 'Read the flagged vendor document. Hidden or near invisible text in it was ignored, and the vendor should be asked about it.',
+  hidden_instructions: 'Read the flagged vendor document. Near invisible text and instruction-like text in it were ignored, and the vendor should be asked about them.',
   line_needs_review: 'Check the cell against the source in the review queue and accept, edit or mark it not quoted.',
   conflict: 'Two sources disagree. Choose which one is right in the review queue.',
   extraction_failed: 'Re run the extraction for the failed document, or read it by hand.',
@@ -312,6 +313,14 @@ export function buildPack(data: AnalystData, req: PackRequest, now: Date = new D
     if (!v || !included.has(v.key)) continue;
     push({ vendor_key: v.key, kind: i.kind, severity: i.severity, value_at_stake_inr: i.value_at_stake_inr, text: `${v.key}: ${safeMessage(i.kind, i.message)}${i.line_code ? ` (${i.line_code})` : ''}` });
   }
+
+  // A document with both near invisible text and instruction like text is one open item, not two.
+  const mergedItems = mergeHiddenContent(unresolved, (vendor_key) => ({ vendor_key, kind: HIDDEN_CONTENT_KIND, severity: 'warn' as const, value_at_stake_inr: null, text: `${vendor_key ? `${vendor_key}: ` : ''}${HIDDEN_CONTENT_MESSAGE}` }));
+  const onceOnly = new Set<string>();
+  unresolved.splice(0, unresolved.length, ...mergedItems.filter((r) => {
+    const k = `${r.vendor_key}|${r.kind}|${r.text}`;
+    return onceOnly.has(k) ? false : (onceOnly.add(k), true);
+  }));
 
   // Flags on the cells the award relies on.
   const flagGroups = new Map<string, { vendor_key: string; flag: string; lines: string[] }>();

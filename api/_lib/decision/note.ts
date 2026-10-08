@@ -28,6 +28,7 @@ const KIND_PHRASE: Record<string, string> = {
   attachment_name_mismatch: 'a certificate legal name differs from the quote letterhead',
   suspicious_content: 'a vendor document contained instruction like text that was ignored',
   low_visibility_text: 'a vendor document contained near invisible text that was ignored',
+  hidden_instructions: 'a vendor document contained near invisible text and instruction like text, both ignored',
   line_needs_review: 'some prices need a person to check them',
   conflict: 'some prices are in conflict',
   extraction_failed: 'a document could not be read',
