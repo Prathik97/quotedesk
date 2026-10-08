@@ -24,7 +24,9 @@
     "serve:prod": "tsx scripts/serve-prod.ts",
     "demo:reset": "tsx scripts/reset-demo.ts",
     "build:function": "node scripts/build-function.mjs",
-    "check:function": "tsx scripts/check-function.ts"
+    "check:function": "tsx scripts/check-function.ts",
+    "decision:memo": "tsx scripts/decision-memo.ts",
+    "verify:decision": "tsx scripts/verify/decision.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
@@ -36,6 +38,7 @@
     "lucide-react": "^1.52.0",
     "mailparser": "^3.9.36",
     "mammoth": "^1.13.0",
+    "pdf-lib": "^1.17.1",
     "pg": "^8.23.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

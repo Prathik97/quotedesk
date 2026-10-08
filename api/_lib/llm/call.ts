@@ -38,7 +38,7 @@ export class DailyCapError extends BudgetExceededError {
 }
 
 export type CallContext = {
-  stage: 'classify' | 'extract' | 'repair' | 'certificate' | 'ping';
+  stage: 'classify' | 'extract' | 'repair' | 'certificate' | 'ping' | 'note';
   route: string;
   prompt_version: string;
   document_sha256: string;

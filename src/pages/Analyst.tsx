@@ -205,7 +205,7 @@ export function Analyst() {
             ) : null}
           </div>
         ) : null}
-        <div className="flex-1 space-y-5 pb-4" aria-live="polite">
+        <div className="flex-1 space-y-5 pb-6" aria-live="polite">
           {loaded && turns.length === 0 && !capped ? (
             <div className="rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
               <p className="font-medium text-foreground">Ask anything about the five quotes.</p>
@@ -215,10 +215,11 @@ export function Analyst() {
           {turns.map((t) => (
             <AnswerView key={t.id} turn={t} onAsk={(q) => void ask(q)} busy={busy || capped} />
           ))}
-          <div ref={bottom} />
+          {/* scroll-mb reserves the height of the sticky input bar, so scrolling to the end never leaves the last answer behind it. */}
+          <div ref={bottom} className="scroll-mb-28" aria-hidden />
         </div>
         <form
-          className="sticky bottom-0 -mx-1 flex items-end gap-2 border-t border-border bg-background px-1 pt-3"
+          className="sticky bottom-0 z-10 -mx-1 flex items-end gap-2 border-t border-border bg-background px-1 pb-2 pt-3"
           onSubmit={(e) => {
             e.preventDefault();
             void ask(input);

@@ -55,3 +55,19 @@ Real email sending and receiving, authentication and multi tenancy, vendor porta
 - **Cleaning up visitors' chats before Reset.** Chats from visitors stay in the database until someone uses Reset demo.
 - **Anything proven on real Vercel.** Function bundling, the bracketed catch all file, `includeFiles`, streaming on the live runtime and the TypeScript 7 build of the function are verified only on the first deploy (D62).
 - **README setup and architecture guide, production seed run and the Loom walkthrough.** Still phase 8; `DEPLOY.md` covers deploying.
+
+## Cut or deferred in Phase 7 (2026-10-08)
+- **DOCX memo.** PDF and xlsx only (the brief allows PDF plus a DOCX or an xlsx appendix).
+- **Charts in the memo.** Tables only. The Decision page has no charts either: the analyst draws charts from stored results.
+- **The rupee sign and a custom font in the PDF.** Standard Helvetica, so amounts say "Rs". A custom font would need a font file shipped in the function and a font engine; not worth it for the demo.
+- **Evidence crops and source quotes inside the memo.** The memo names the vendor, line and flag, and the page links to the evidence drawer. The photo crop for V4 stays in the app.
+- **Pack history.** Nothing is stored: each download regenerates the pack. There is no list of past packs, no version number and no signature or approval step (role based approvals are out of scope by brief). A stored model note is reused only for identical data.
+- **A discount threshold sweep.** Sensitivity shows the discount on and off, not a sweep of the threshold or of which PO split would reach it (the analyst answers that question on request).
+- **Share cap or strategy sensitivity in the memo.** Only the USD rate, the discount and the loss of the top vendor, as FR-8.1 lists.
+- **Failed vendors on the Decision page.** Eligibility offers cleared, or cleared plus Pending. A Failed vendor cannot be included here (the analyst can show it with warnings).
+- **Decision page choices survive a reload.** The scenario resets when the page is left or reloaded.
+- **The note's second live run.** Prompt version 2 for the approval note is unverified live (see D80).
+- **Questionnaire answers in full inside the memo PDF.** The PDF shows the three knockouts and the result per vendor; the full twelve question matrix, with each vendor's answer text cut at 140 characters, is in the xlsx.
+- **A visual regression test of the memo.** The layout was checked by eye on two scenarios. Tests read the text out of the PDF and check page count; they do not compare pixels.
+- **Streaming the pack.** The route returns when the pack is done (a few seconds, up to about 15 with the model call). There is no progress beyond a status line.
+- **Anything proven on real Vercel.** That `pdf-lib` is traced into the function and the 60 second duration is enough are checked only locally (plain Node 22 with the built function) until the deploy.

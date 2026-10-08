@@ -1,8 +1,8 @@
 // Persistent top strip: certainty counts with click through, and decision readiness (FR-9.2, FR-9.3).
 import { CircleCheck, OctagonX, TriangleAlert } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { CellStatus } from '../../engine/certainty';
-import { judgeScenario } from '../../engine/readiness';
+import { useDefaultReadiness } from '@/lib/decision';
 import { useApp } from '@/lib/store';
 import { STATUS_ICON, STATUS_LABEL, STATUS_TEXT_CLASS } from '@/lib/status';
 import { cn } from '@/lib/utils';
@@ -17,20 +17,11 @@ const LABEL: Record<CellStatus, (n: number) => string> = {
 };
 
 export function TopStrip() {
-  const { data, setPage, setTab, setStatusFilter, busy, toggles } = useApp();
+  const { data, setPage, setTab, setStatusFilter, busy } = useApp();
   const [open, setOpen] = useState(false);
-  // Readiness is judged for the vendors in the current view: all five, or cleared vendors only.
-  const r = useMemo(() => {
-    if (!data) return null;
-    const included = data.vendors.filter((v) => !toggles.onlyCleared || v.questionnaire === 'Cleared');
-    return judgeScenario(
-      included.map((v) => ({
-        key: v.key, questionnaire: v.questionnaire, needs_review: v.counts.needs_review, conflict: v.counts.conflict, in_award: false,
-        freight: { terms: v.freight_terms, amount_inr: v.freight_amount_inr }, open_items: data.open_items.filter((i) => i.vendor_key === v.key),
-      })),
-      { assumed_cells: included.reduce((n, v) => n + v.counts.assumed, 0), gaps: 0 },
-    );
-  }, [data, toggles.onlyCleared]);
+  // Readiness of the default scenario (cheapest per line, cleared vendors only), judged by the same
+  // award engine and the same rule as the Decision page. Not the view toggles on the comparison grid.
+  const r = useDefaultReadiness(data);
   if (!data || !r) return <div className="text-sm text-muted-foreground">Certainty counts load with the comparison.</div>;
   const c = data.certainty;
 
@@ -85,13 +76,14 @@ export function TopStrip() {
           {r.label}
         </button>
         {open ? (
-          <div role="dialog" aria-label="Decision readiness details" className="absolute right-0 top-9 z-40 w-[440px] rounded-lg border border-border bg-card p-3 text-sm shadow-lg">
+          <div role="dialog" aria-label="Decision readiness details" className="absolute right-0 top-9 z-40 w-[480px] rounded-lg border border-border bg-card p-3 text-sm shadow-lg">
             <p className="font-medium">
               {r.label}
-              <span className="ml-2 text-xs font-normal text-muted-foreground">{toggles.onlyCleared ? 'Cleared vendors only' : 'All vendors'}: {r.included_vendors.join(', ')}</span>
+              <span className="ml-2 text-xs font-normal text-muted-foreground">Default scenario: cheapest per line, cleared vendors only ({r.included_vendors.join(', ')})</span>
             </p>
             <p className="mt-0.5 text-muted-foreground">{r.summary}</p>
             <div className="max-h-64 overflow-auto">
+              {r.blockers.length === 0 ? <p className="mt-2 text-xs font-semibold">No blockers</p> : null}
               {r.blockers.length > 0 ? (
                 <>
                   <p className="mt-2 text-xs font-semibold">Blockers</p>
@@ -119,7 +111,18 @@ export function TopStrip() {
                 </>
               ) : null}
             </div>
+            {r.blockers.length === 0 && r.open_items.length === 0 ? <p className="mt-2 text-xs text-muted-foreground">Nothing is open for the vendors in the default scenario.</p> : null}
             <div className="mt-3 flex justify-end gap-2">
+              <Btn
+                small
+                variant="primary"
+                onClick={() => {
+                  setOpen(false);
+                  setPage('decision');
+                }}
+              >
+                Open the Decision page
+              </Btn>
               <Btn
                 small
                 onClick={() => {

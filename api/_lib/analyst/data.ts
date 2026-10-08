@@ -4,7 +4,7 @@ import type pg from 'pg';
 import type { AwardInput } from '../../../engine/award.js';
 import type { Assumptions } from '../../../engine/types.js';
 import type { CompareResponse } from '../../../src/lib/api-types.js';
-import { deriveAll } from '../../../src/lib/derive.js';
+import { awardInputFromCompare, globalAssumptionsOf, safeMessage } from '../../../src/lib/awardInput.js';
 import { loadCompare } from '../compare/data.js';
 
 export type OpenItemRow = {
@@ -20,16 +20,7 @@ export type OpenItemRow = {
 
 export type AnalystData = { compare: CompareResponse; items: OpenItemRow[] };
 
-/** Vendor text must never reach the model as something that reads like an instruction. */
-const SUSPICIOUS_KINDS = ['suspicious_content', 'low_visibility_text'];
-
-export function safeMessage(kind: string, message: string): string {
-  if (SUSPICIOUS_KINDS.includes(kind)) {
-    const where = /\(([^)]{1,60})\)/.exec(message)?.[1];
-    return `Instruction-like text was found in a vendor document${where ? ` (${where})` : ''}. It was ignored and flagged for the buyer. Its content is not shown here.`;
-  }
-  return message.length > 400 ? `${message.slice(0, 400)}...` : message;
-}
+export { safeMessage };
 
 export async function loadAnalystData(pool: pg.Pool): Promise<AnalystData> {
   const [compare, items] = await Promise.all([
@@ -52,31 +43,12 @@ export async function loadAnalystData(pool: pg.Pool): Promise<AnalystData> {
 }
 
 export function globalAssumptions(c: CompareResponse): Assumptions {
-  const g = (k: string, d: number) => Number(c.assumptions.find((a) => a.key === k)?.value ?? d);
-  return { usd_inr: g('usd_inr', 96), gst_pct: g('gst_pct', 18) };
+  return globalAssumptionsOf(c);
 }
 
 /** The award input at the given assumptions. Cells are re-derived with the same engine function the grid uses. */
 export function buildAwardInput(data: AnalystData, a: Assumptions): AwardInput {
-  const derived = deriveAll(data.compare, a, {});
-  const itemsByVendor = new Map<string, AwardInput['vendors'][number]['open_items']>();
-  for (const i of data.items) {
-    // Per cell Assumed entries are not review items; line level kinds are judged from the cells themselves.
-    itemsByVendor.set(i.vendor_id, [...(itemsByVendor.get(i.vendor_id) ?? []), { kind: i.kind, severity: i.severity, message: i.message }]);
-  }
-  return {
-    vendors: derived.vendors.map((v) => ({
-      id: v.id,
-      key: v.key,
-      name: v.name,
-      questionnaire: v.questionnaire,
-      freight: { terms: v.freight_terms, amount_inr: v.freight_amount_inr },
-      discounts: v.discounts.map((d) => ({ id: d.id, percent: d.percent, condition: d.condition, text: d.text })),
-      open_items: itemsByVendor.get(v.id) ?? [],
-    })),
-    lines: derived.lines.map((l) => ({ id: l.id, code: l.code, section: l.section, description: l.description, uom: l.uom, annual_qty: l.annual_qty, ly_rate: l.ly_rate, sort: l.sort })),
-    cells: derived.cells.map((c) => ({ vendor_id: c.vendor_id, line_id: c.rfx_line_id, quote_line_id: c.quote_line_id, price: c.price, status: c.status, conditions: c.conditions })),
-  };
+  return awardInputFromCompare(data.compare, a, data.items);
 }
 
 /** Resolves "V3", "vendor 3", "Sunrise" or "Kaveri Packaging" to a vendor key. Null when nothing matches. */

@@ -92,10 +92,18 @@ Without the token, the button and the endpoint allow 3 resets per hour per addre
 ## 7. Before every push
 
 ```bash
-npm run check:function    # Node 22. Builds, loads .build/handler.mjs in plain Node, calls health, ready, usage, compare
+npm run check:function    # Node 22. Builds, loads .build/handler.mjs in plain Node, calls health, ready, usage, compare, and POSTs /api/decision with the template note
 ```
 
-It reads `.env.local`, never prints a value, forces both spend caps to 0 for the child process, and makes no model call. Any route that does not return 200 fails the check and names the failing layer.
+It reads `.env.local`, never prints a value, forces both spend caps to 0 for the child process, and makes no model call. Any route that does not return 200 fails the check and names the failing layer. The decision pack route is called in template mode and the check confirms the memo is a real PDF and the appendix a real xlsx.
+
+## 7a. The decision pack (Phase 7)
+
+`POST /api/decision` builds the memo (PDF, `pdf-lib`) and the xlsx appendix on request and returns both base64 encoded in the JSON. Nothing is stored. It needs no new environment variable and no migration. `pdf-lib` is a dependency, so it ships from `node_modules` like `exceljs` and `pg`.
+
+- The approval note is the only model call (about Rs 0.70, one call). It goes through the same gates as the analyst: the per IP hourly limit (shared counter) and the daily spend cap. When either refuses, or the call fails, the pack is still made with a labelled template note. `note_mode: "template"` never touches the model or the gates.
+- The prompt file is `prompts/note.v2.md`, already covered by `includeFiles`.
+- After a deploy: open the Decision page, press Create with the template note, and download both files. Then press Create decision pack once to see the live note (one model call).
 
 ## 8. Rehearse the production build on your machine
 

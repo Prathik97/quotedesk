@@ -1,6 +1,6 @@
 // Small shared pieces. Plain elements with visible focus; labels on every control.
 import { Database } from 'lucide-react';
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import type { StoredRun } from '@/lib/api-types';
 
@@ -85,8 +85,12 @@ export function Loading({ what }: { what: string }) {
   );
 }
 
-export function Card({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn('rounded-lg border border-border bg-card', className)}>{children}</div>;
+export function Card({ children, className, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div {...rest} className={cn('rounded-lg border border-border bg-card', className)}>
+      {children}
+    </div>
+  );
 }
 
 export function pipelineTone(p: string): 'good' | 'warn' | 'neutral' | 'accent' {

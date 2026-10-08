@@ -5,6 +5,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import analyst from './routes/analyst.js';
 import assumptions from './routes/assumptions.js';
 import compare from './routes/compare.js';
+import decision from './routes/decision.js';
 import documents from './routes/documents.js';
 import exportRoute from './routes/export.js';
 import evidence from './routes/evidence.js';
@@ -22,7 +23,7 @@ import vendor from './routes/vendor.js';
 type Handler = (req: VercelRequest, res: VercelResponse) => Promise<void>;
 
 const routes: Record<string, Handler> = {
-  analyst, assumptions, compare, documents, evidence, export: exportRoute, extract, health, inbox, normalize, ready, review, 'reset-demo': resetDemo, rfx, usage, vendor,
+  analyst, assumptions, compare, decision, documents, evidence, export: exportRoute, extract, health, inbox, normalize, ready, review, 'reset-demo': resetDemo, rfx, usage, vendor,
 };
 
 const known = (name: string | undefined): name is string => !!name && Object.prototype.hasOwnProperty.call(routes, name);

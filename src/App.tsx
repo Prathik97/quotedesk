@@ -7,8 +7,8 @@ import { TopStrip } from '@/components/TopStrip';
 import { AppProvider, useApp, type Page } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { Analyst } from '@/pages/Analyst';
-import { ComingNext } from '@/pages/ComingNext';
 import { Comparison } from '@/pages/Comparison';
+import { Decision } from '@/pages/Decision';
 import { Eval } from '@/pages/Eval';
 import { Inbox } from '@/pages/Inbox';
 import { IssuedRfx } from '@/pages/IssuedRfx';
@@ -18,7 +18,7 @@ const STAGES: { id: Page; label: string; icon: typeof FileText; soon?: boolean }
   { id: 'inbox', label: 'Inbox', icon: InboxIcon },
   { id: 'comparison', label: 'Comparison', icon: BarChart3 },
   { id: 'analyst', label: 'Analyst', icon: MessageSquare },
-  { id: 'decision', label: 'Decision', icon: Scale, soon: true },
+  { id: 'decision', label: 'Decision', icon: Scale },
   { id: 'eval', label: 'Evaluation', icon: ShieldCheck },
 ];
 
@@ -74,7 +74,7 @@ function Shell() {
           {page === 'comparison' ? <Comparison /> : null}
           {page === 'analyst' ? <Analyst key={resetCount} /> : null}
           {page === 'eval' ? <Eval /> : null}
-          {page === 'decision' ? <ComingNext title="Decision" what="Turn a scenario into an award decision pack that lists every assumption and every unresolved item." /> : null}
+          {page === 'decision' ? <Decision /> : null}
         </main>
       </div>
       <footer className="flex min-h-8 shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-t border-border bg-card px-4 py-1 text-xs text-muted-foreground">
