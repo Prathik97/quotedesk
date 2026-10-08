@@ -4,6 +4,7 @@ import type { RfxResponse } from '../../../src/lib/api-types.js';
 import { storedRun } from '../compare/data.js';
 import { db } from '../db.js';
 import { ApiError, route } from '../http.js';
+import { STORED_RUN_USAGE_SQL } from '../compare/stored-run.js';
 
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -15,7 +16,7 @@ export default route(['GET'], async (): Promise<RfxResponse> => {
         'rfx', (select to_jsonb(r) from r),
         'lines', (select coalesce(jsonb_agg(to_jsonb(l) order by l.sort), '[]'::jsonb) from rfx_lines l, r where l.rfx_id = r.id),
         'questions', (select coalesce(jsonb_agg(to_jsonb(q) order by q.sort), '[]'::jsonb) from questionnaire_questions q, r where q.rfx_id = r.id),
-        'usage', (select jsonb_build_object('mx', max(created_at), 'n', count(*)) from usage_log where not cache_hit and stage = 'extract')
+        'usage', ${STORED_RUN_USAGE_SQL}
       ) as d`)
   ).rows[0]?.d;
   if (!r?.rfx) throw new ApiError(404, 'not_found', 'No RFx is loaded. Run npm run seed:db.');

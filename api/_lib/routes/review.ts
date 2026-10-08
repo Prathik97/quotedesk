@@ -11,6 +11,7 @@ import { storedRun } from '../compare/data.js';
 import { recompute } from '../compare/recompute.js';
 import { db } from '../db.js';
 import { ApiError, route } from '../http.js';
+import { STORED_RUN_USAGE_SQL } from '../compare/stored-run.js';
 
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -51,7 +52,7 @@ async function listReview(pool: ReturnType<typeof db>): Promise<ReviewResponse> 
         'vendors', (select coalesce(jsonb_agg(jsonb_build_object('id', v.id, 'key', v.vendor_key, 'name', v.name)), '[]'::jsonb) from vendors v),
         'totals', (select coalesce(jsonb_agg(jsonb_build_object('vendor_id', t.vendor_id, 'total', t.total)), '[]'::jsonb)
             from (select vendor_id, sum(annual_value_inr) as total from comparison_view group by vendor_id) t),
-        'usage', (select jsonb_build_object('mx', max(created_at), 'n', count(*)) from usage_log where not cache_hit and stage = 'extract')
+        'usage', ${STORED_RUN_USAGE_SQL}
       ) as d`)
   ).rows[0]?.d as Json;
   const vendors = new Map((raw.vendors as Json[]).map((v) => [v.id as string, v]));
@@ -107,8 +108,8 @@ async function listReview(pool: ReturnType<typeof db>): Promise<ReviewResponse> 
 async function applyAction(pool: ReturnType<typeof db>, a: z.infer<typeof Body>): Promise<ActionResponse> {
   if (a.action === 'dismiss') return dismiss(pool, a);
   const row = (
-    await pool.query<{ id: string; vendor_id: string; overrides: LineOverrides; quoted_price: string | null; quoted_uom_text: string | null; quoted_currency: string | null; price_basis: Json; code: string; uom: string }>(
-      `select q.id, q.vendor_id, q.overrides, q.quoted_price, q.quoted_uom_text, q.quoted_currency, q.price_basis, l.code, l.uom
+    await pool.query<{ id: string; vendor_id: string; overrides: LineOverrides; flags: string[]; quoted_price: string | null; quoted_uom_text: string | null; quoted_currency: string | null; price_basis: Json; code: string; uom: string }>(
+      `select q.id, q.vendor_id, q.overrides, q.flags, q.quoted_price, q.quoted_uom_text, q.quoted_currency, q.price_basis, l.code, l.uom
        from quote_lines q join rfx_lines l on l.id = q.rfx_line_id where q.id = $1`,
       [a.quote_line_id],
     )
@@ -121,6 +122,10 @@ async function applyAction(pool: ReturnType<typeof db>, a: z.infer<typeof Body>)
 
   switch (a.action) {
     case 'accept':
+      // Reading a line as it stands cannot settle a tax basis the document leaves open. The buyer edits the value instead.
+      if (row.flags?.some((f) => f === 'tax_unresolved' || f === 'tax_conflict')) {
+        throw new ApiError(409, 'tax_unresolved', 'The tax statements for this line conflict in the vendor document. It cannot be accepted as read. Edit the value against the source instead.');
+      }
       next = { ...old, verified: true };
       logs.push({ field: 'verified', old: old.verified === true, neu: true });
       why ||= 'Checked against the source and accepted as read.';

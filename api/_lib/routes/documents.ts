@@ -6,6 +6,7 @@ import { loadDocuments, loadExtractedLines } from '../compare/docs.js';
 import { documentPreview } from '../compare/source.js';
 import { db } from '../db.js';
 import { ApiError, route } from '../http.js';
+import { STORED_RUN_ROW_SQL } from '../compare/stored-run.js';
 
 const Query = z.object({ vendor_id: z.string().uuid().optional(), id: z.string().uuid().optional() });
 
@@ -14,7 +15,7 @@ export default route(['GET'], async (req) => {
   if (!q.success || (!q.data.vendor_id && !q.data.id)) throw new ApiError(400, 'bad_request', 'Pass vendor_id or id.');
   const pool = db();
   const docs = await loadDocuments(pool, q.data);
-  const usage = (await pool.query(`select max(created_at) as mx, count(*) as n from usage_log where not cache_hit and stage = 'extract'`)).rows[0];
+  const usage = (await pool.query(STORED_RUN_ROW_SQL)).rows[0];
   const stored = storedRun(usage);
   if (q.data.id) {
     const doc = docs[0];

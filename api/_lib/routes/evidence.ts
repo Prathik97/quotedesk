@@ -14,6 +14,7 @@ import { evidenceContext } from '../compare/source.js';
 import { signedUrl } from '../compare/storage.js';
 import { db } from '../db.js';
 import { ApiError, route } from '../http.js';
+import { STORED_RUN_USAGE_SQL } from '../compare/stored-run.js';
 
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -36,7 +37,7 @@ select jsonb_build_object(
   'corrections', (select coalesce(jsonb_agg(to_jsonb(c) order by c.created_at desc), '[]'::jsonb) from corrections c where c.quote_line_id = (select id from ql)),
   'items', (select coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'kind', i.kind, 'state', i.state, 'message', i.message)), '[]'::jsonb) from review_items i where i.quote_line_id = (select id from ql)),
   'assumptions', (select coalesce(jsonb_agg(jsonb_build_object('key', a.key, 'value', a.value)), '[]'::jsonb) from assumptions a where a.scope = 'global'),
-  'usage', (select jsonb_build_object('mx', max(created_at), 'n', count(*)) from usage_log where not cache_hit and stage = 'extract')
+  'usage', ${STORED_RUN_USAGE_SQL}
 ) as d`;
 
 export default route(['GET'], async (req) => {

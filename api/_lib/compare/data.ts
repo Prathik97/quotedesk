@@ -19,6 +19,7 @@ import type {
 } from '../../../src/lib/api-types.js';
 import { shortValidityWarning } from '../../../engine/terms.js';
 import { defaults } from './assumptions.js';
+import { STORED_RUN_USAGE_SQL } from './stored-run.js';
 
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -43,10 +44,10 @@ select jsonb_build_object(
   'items', (select coalesce(jsonb_agg(jsonb_build_object('kind', i.kind, 'severity', i.severity, 'message', i.message, 'vendor_id', i.vendor_id)), '[]'::jsonb)
       from review_items i where i.state = 'open'),
   'assumptions', (select coalesce(jsonb_agg(to_jsonb(a)), '[]'::jsonb) from assumptions a where a.scope = 'global'),
-  'usage', (select jsonb_build_object('mx', max(created_at), 'n', count(*)) from usage_log where not cache_hit and stage = 'extract'),
+  'usage', ${STORED_RUN_USAGE_SQL},
   'raw', (select coalesce(jsonb_agg(jsonb_build_object('id', q.id, 'per_n', q.price_basis->'per_n', 'tax', q.price_basis->>'tax', 'inherits', q.price_basis->'inherits_last_year',
       'read', q.conversion->>'read_confidence', 'evread', q.evidence->>'read_confidence', 'match', q.match_confidence, 'quote', q.evidence->>'quote', 'locator', q.evidence->>'locator',
-      'doc', q.source_document_id, 'flags', q.flags, 'overrides', q.overrides)), '[]'::jsonb) from quote_lines q where q.rfx_line_id is not null),
+      'doc', q.source_document_id, 'flags', q.flags, 'overrides', q.overrides, 'size_check', q.conversion->'size_check', 'dup', q.conversion->>'duplicate_rfx_match')), '[]'::jsonb) from quote_lines q where q.rfx_line_id is not null),
   'pack_overrides', (select coalesce(jsonb_agg(jsonb_build_object('vendor_id', q.vendor_id)), '[]'::jsonb) from quote_lines q where q.overrides ? 'pack')
 ) as d`;
 
@@ -98,6 +99,8 @@ export async function loadCompare(pool: pg.Pool): Promise<CompareResponse> {
           overrides: rw.overrides ?? {},
           unit_definitions: defs.map((x) => ({ term: x.term, means_quantity: x.means_quantity ?? null, means_unit: x.means_unit ?? null, quote: x.evidence?.quote ?? null })),
           rfx_text: [lineById.get(c.rfx_line_id)?.description, lineById.get(c.rfx_line_id)?.spec].filter(Boolean).join(' ; '),
+          size_check: rw.size_check ?? null,
+          duplicate_rfx_match: rw.dup ?? null,
           vendor_notes: ((termsByVendor.get(c.vendor_id)?.global_notes ?? []) as Json[]).filter((x) => !x.document_id || x.document_id === rw?.doc).map((x) => String(x.text)),
         }
       : null,
@@ -231,6 +234,7 @@ export async function loadCompare(pool: pg.Pool): Promise<CompareResponse> {
     push('gst_pct', 'Quoted including GST', assumptionText('gst_pct', { usd_inr: d.usd_inr, gst_pct: d.gst_pct }), count('gst_pct'));
     push('last_year_inheritance', 'Same as last year', 'The vendor gave no number, so the last year contract rate is used.', count('last_year_inheritance'));
     push('tax_basis_assumed_excl', 'GST basis not stated', 'Read as excluding GST, as the RFx asked.', count('tax_basis_assumed_excl'));
+    push('tax_basis_conflict', 'Conflicting tax statements', 'The vendor document says GST is extra and included in different places. Prices are shown without GST at the rate the vendor stated, and held at Assumed.', count('tax_basis_conflict'));
     if (count('pack_size') > 0 || buyerPackVendors.has(v.id)) {
       const text = defs.map((x) => `${x.term} = ${x.means_quantity} ${x.means_unit ?? ''}`.trim()).join('; ');
       push('pack_size', 'Pack size from the vendor note', text ? `Vendor note: ${text}.` : 'Pack size from the vendor note.', count('pack_size'));

@@ -6,6 +6,7 @@ import { db } from '../db.js';
 import { z } from 'zod';
 import { BrowserId } from '../copilot/drafts.js';
 import { ApiError, route } from '../http.js';
+import { STORED_RUN_USAGE_SQL } from '../compare/stored-run.js';
 
 // GET  /api/inbox?browser_id=X        the vendor replies, once this browser has pressed "Simulate vendor replies"
 // POST /api/inbox {action:'simulate'}  reveals the stored replies for this browser (no model call)
@@ -29,7 +30,7 @@ export default route(['GET', 'POST'], async (req): Promise<InboxResponse | { ok:
       'vendors', (select coalesce(jsonb_agg(jsonb_build_object('id', v.id, 'key', v.vendor_key, 'name', v.name, 'from', v.contact_email,
           'msg', (select to_jsonb(m) from (select subject, body_text, arrival_day, received_at from vendor_messages m where m.vendor_id = v.id order by arrival_day limit 1) m)) order by v.vendor_key), '[]'::jsonb) from vendors v),
       'items', (select coalesce(jsonb_agg(jsonb_build_object('vendor_id', i.vendor_id, 'kind', i.kind, 'severity', i.severity)), '[]'::jsonb) from review_items i where i.state = 'open'),
-      'usage', (select jsonb_build_object('mx', max(created_at), 'n', count(*)) from usage_log where not cache_hit and stage = 'extract')) as d`),
+      'usage', ${STORED_RUN_USAGE_SQL}) as d`),
     loadDocuments(pool),
   ]);
   const d = meta.rows[0]?.d ?? {};

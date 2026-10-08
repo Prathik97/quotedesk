@@ -6,6 +6,8 @@
 import pg from 'pg';
 import { pgConfig } from '../../api/_lib/pgconfig.js';
 import { loadAssumptions, loadRfxContext, loadDocument, prepareDocument } from '../../api/_lib/extract/pipeline.js';
+import { storedRun } from '../../api/_lib/compare/data.js';
+import { STORED_RUN_ROW_SQL } from '../../api/_lib/compare/stored-run.js';
 import { deriveLines } from '../../api/_lib/extract/persist.js';
 import { ExtractionSchema } from '../../src/lib/schemas/extraction.js';
 import { loadEnvLocal, requireEnv } from '../envfile.js';
@@ -43,10 +45,16 @@ try {
       else if (diffs.length < 8) diffs.push(`${doc.filename} ${key(x.rfx?.code ?? null, x.line.vendor_description)}: stored ${s ? `${s.status} ${s.n}` : 'missing'} vs derived ${x.status} ${x.normalized}`);
     }
   }
+  // The stored comparison label counts only extractions of the five vendors' documents, never sandbox or script runs.
+  const label = storedRun((await pool.query(STORED_RUN_ROW_SQL)).rows[0]);
+  const allExtract = Number((await pool.query<{ n: string }>(`select count(*) n from usage_log where not cache_hit and stage = 'extract'`)).rows[0]?.n ?? 0);
+  const sandboxRows = Number((await pool.query<{ n: string }>(`select count(*) n from usage_log where not cache_hit and stage = 'extract' and route like '%sandbox%'`)).rows[0]?.n ?? 0);
+  console.log(`stored run label: "${label.label}", ${label.live_calls} live calls (usage_log holds ${allExtract} extract rows, ${sandboxRows} from Try your file, none counted)`);
+  const labelOk = label.live_calls <= allExtract - sandboxRows;
   console.log(`documents ${docs.length}, lines compared ${compared}, identical ${same}`);
   if (diffs.length) console.log(diffs.join('\n'));
-  console.log(same === compared && compared > 0 ? `PASS the sandbox derivation reproduces all ${compared} stored comparison cells` : 'FAIL the derivation differs from the stored cells');
-  if (same !== compared) process.exitCode = 1;
+  console.log(same === compared && compared > 0 && labelOk ? `PASS the sandbox derivation reproduces all ${compared} stored comparison cells` : 'FAIL the derivation differs from the stored cells');
+  if (same !== compared || !labelOk) process.exitCode = 1;
 } finally {
   await pool.end();
 }
