@@ -1,0 +1,39 @@
+=== Sheet 'Quote' ===
+Merged regions: A36:G36, A1:G1, A40:G40, A6:G6, A39:G39, A34:G34, A35:G35, A4:G4, A38:G38, A2:G2, A5:G5, A37:G37
+A1: METRO KRAFT PACKAGING CO.
+A2: Plot 41, Peenya Industrial Area, Bengaluru 560058 | GSTIN 29AAGFM4410K1ZP | Ph 080 2839 0412
+A4: QUOTATION No. MK/Q/0987 dated 08-Oct-2026
+A5: To: Greenfield Foods Pvt Ltd, Purchase Dept. Ref: your RFQ GFF/PKG/RFQ/FY27/014
+A6: Kind attention: Category Buyer, Packaging
+A8: Sr | B8: Description of goods | C8: Size / specification | D8: Unit | E8: Basic rate (Rs) | F8: Rate incl. GST (Rs) | G8: Remarks
+A9: 1 | B9: Brown corrugated box 5 ply | C9: 18 x 12 x 10 in | D9: per 100 | E9: 2740 | F9: 3233.2
+A10: 2 | B10: Brown corrugated box 5 ply | C10: 16 x 12 x 8 in | D10: per 100 | E10: 2320 | F10: 2737.6
+A11: 3 | B11: Brown corrugated box 5 ply | C11: 20 x 14 x 12 in | D11: per 100 | E11: 3640 | F11: 4295.2
+A12: 4 | B12: Brown corrugated box 5 ply | C12: 24 x 16 x 16 in | D12: per 100 | E12: 5290 | F12: 6242.2 | G12: Heavy duty
+A13: 5 | B13: Brown corrugated box 5 ply | C13: 14 x 10 x 6 in | D13: per 100 | E13: 1590 | F13: 1876.2
+A14: 6 | B14: Die cut mailer box 5 ply | C14: 12 x 8 x 4 in | D14: per 100 | E14: 1690 | F14: 1994.2
+A15: 7 | B15: Brown corrugated box 3 ply | C15: 12 x 8 x 6 in | D15: per 100 | E15: 615 | F15: 725.7
+A16: 8 | B16: Brown corrugated box 3 ply | C16: 14 x 10 x 8 in | D16: per 100 | E16: 940 | F16: 1109.2
+A17: 9 | B17: Brown corrugated box 3 ply | C17: 10 x 8 x 4 in | D17: per 100 | E17: 470 | F17: 554.6
+A18: 10 | B18: Brown corrugated box 3 ply | C18: 16 x 12 x 10 in | D18: per 100 | E18: 1430 | F18: 1687.4
+A19: 11 | B19: Mono carton 3 ply | C19: 8 x 6 x 3 in | D19: per 100 | E19: 285 | F19: 336.3
+A20: 12 | B20: Corrugated sheet 5 ply | C20: 1100 x 1500 mm | D20: per kg | E20: 43.4
+A21: 13 | B21: Corrugated sheet 5 ply | C21: 1250 x 1800 mm | D21: per kg | E21: 44.9
+A22: 14 | B22: Corrugated sheet 3 ply | C22: 1000 x 1400 mm | D22: per kg | E22: 39.6
+A23: 15 | B23: Corrugated roll 3 ply | C23: 1000 mm wide | D23: per sq m | E23: 16.1
+A24: 16 | B24: Partition set 5 ply | C24: 3 x 2 cell, for 18x12x10 in box | D24: per set | E24: 9.5
+A25: 17 | B25: Edge protector paper board | C25: 50 x 50 x 4 mm | D25: per mtr | E25: 13.8
+A26: 18 | B26: Die cut tray corrugated | C26: 380 x 280 x 40 mm | D26: per pc | E26: 12.1
+A27: 19 | B27: Layer pad corrugated | C27: 1000 x 1200 mm | D27: per pc | E27: 36.5
+A28: 20 | B28: BOPP tape brown | C28: 48 mm x 100 m | D28: per roll | E28: 45
+A29: 21 | B29: BOPP tape clear | C29: 48 mm x 50 m | D29: per roll | E29: 27.5
+A30: 22 | B30: Stretch film | C30: 500 mm, 23 micron | D30: per kg | E30: 109
+A31: 23 | B31: PET strap | C31: 15 mm | D31: per kg | E31: 127
+A32: 24 | B32: Kraft paper roll (void fill) | C32: 50 gsm, 750 mm | D32: per kg | E32: 66.5 | G32: Subject to availability
+A34: TERMS AND CONDITIONS
+A35: 1. Carton rates are for BF 18 (3 ply) and BF 20 (5 ply) board. For BF 22 on 5 ply add Rs 0.80 per carton.
+A36: 2. This offer is valid for 15 days from the date above.
+A37: 3. Payment: 100% advance for orders up to Rs 5 lakh; 30 days credit for larger orders.
+A38: 4. Prices are ex-works Peenya. Freight and unloading extra at actuals.
+A39: 5. GST extra as applicable. Rates incl. GST shown for cartons for your convenience.
+A40: 6. Items not listed above are not quoted.

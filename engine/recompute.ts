@@ -5,6 +5,7 @@
 // never disagree.
 import { normalizePrice, readPackDefinitions, specLengthMm } from './convert';
 import type { SizeCheck } from './dimensions';
+import type { HeaderTax } from './tax-header';
 import { clipQuote, conflictText, readingsText, resolveTax, type DocTaxStatement, type ModelTax, type TaxResolution } from './tax';
 import { gradeMismatch, readTerms } from './terms';
 import type { Assumptions, BaseUom, ConversionStep, LineStatus, ReadConfidence, SourceType, UnitDefinition } from './types';
@@ -58,6 +59,8 @@ export type StoredLine = {
   /** The model's tax resolution for this line and the document statements it reported, verified once at extraction. Absent on lines read before they existed. */
   model_tax?: ModelTax | null;
   doc_tax_statements?: DocTaxStatement[];
+  /** The tax basis the line's price column header states, read from the sheet at extraction. Absent on lines read before it existed. */
+  header_tax?: HeaderTax | null;
 };
 
 export type LineResult = {
@@ -117,8 +120,8 @@ export function recomputeLine(l: StoredLine, a: Assumptions): LineResult {
 
   const tax = inherits
     ? null
-    : resolveTax({ doc_basis: l.tax_basis, conditions: l.conditions ?? [], notes: l.vendor_notes ?? [], scope_text: l.scope_text, model_tax: l.model_tax, doc_statements: l.doc_tax_statements });
-  const notDerived = tax?.guard ? notDerivedText(tax, price, l.currency) : null;
+    : resolveTax({ doc_basis: l.tax_basis, conditions: l.conditions ?? [], notes: l.vendor_notes ?? [], scope_text: l.scope_text, model_tax: l.model_tax, doc_statements: l.doc_tax_statements, header_tax: l.header_tax });
+  const notDerived = tax?.guard ? notDerivedText(tax, price, l.currency) : tax?.header_problem ? tax.header_problem.text : null;
   const n = tax?.contradiction
     ? ({ ok: false, reason: 'tax_unresolved', detail: `This line says both included and extra: "${tax.contradiction.a}" and "${tax.contradiction.b}".` } as const)
     : notDerived
@@ -162,7 +165,7 @@ export function recomputeLine(l: StoredLine, a: Assumptions): LineResult {
     // Unchanged on purpose: a line that only says "GST extra" while the document basis is unknown stays Assumed, as before.
     // Reading a stated "extra" as settled would lift lines to Confirmed that carry other unverified conditions.
     if (tax?.source === 'model') keys.push('tax_basis_model');
-    if (tax && (tax.basis === 'unknown' || (tax.basis === 'excl_gst' && l.tax_basis === 'unknown'))) keys.push('tax_basis_assumed_excl');
+    if (tax && tax.source !== 'header' && (tax.basis === 'unknown' || (tax.basis === 'excl_gst' && l.tax_basis === 'unknown'))) keys.push('tax_basis_assumed_excl');
   } else {
     unitKnown = !UNIT_PROBLEMS.includes(n.reason);
     flags.push(n.reason);
@@ -172,6 +175,7 @@ export function recomputeLine(l: StoredLine, a: Assumptions): LineResult {
   const flagText: Record<string, string> = {};
   if (tax?.contradiction) flagText.tax_unresolved = `${error?.detail ?? ''} The price is not converted, because an inclusive price must never be shown as an excluding GST price. Check the source.`.trim();
   else if (notDerived) flagText.tax_unresolved = notDerived;
+  if (tax?.header_problem?.kind === 'evidence_mismatch') flags.push('evidence_mismatch');
   if (tax?.conflict) {
     // The price is still read on this line's own statement and shown without GST; it just cannot be Confirmed.
     const by = tax.source === 'model' ? ` (the model resolved it from the vendor's words: "${tax.statement}")` : '';

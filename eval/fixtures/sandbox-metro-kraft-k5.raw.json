@@ -1,0 +1,437 @@
+{
+ "file": {
+  "filename": "Metro_Kraft_Quotation_MK-Q-0987.xlsx",
+  "size_bytes": 7236,
+  "sha256": "aa29c28b9d3704181d407821b4a1afcf37c7e1416c5234f9e7a1e994b87278e2"
+ },
+ "captured_with": {
+  "prompt": "extract.v4",
+  "note": "Raw model replies only. The vendor file itself is not stored."
+ },
+ "usage": {
+  "cost_inr": 7.828368,
+  "model_calls": 2,
+  "tokens_in": 9065,
+  "tokens_out": 6316,
+  "repaired": false
+ },
+ "global_notes": [
+  "Carton rates are for BF 18 (3 ply) and BF 20 (5 ply) board.",
+  "BF 22 on 5 ply: add Rs 0.80 per carton (RFx 5 ply lines specify BF 22).",
+  "Items not listed above are not quoted.",
+  "Carton lines carry both a basic rate and an incl-GST rate; basic rate used as price."
+ ],
+ "result_lines": [
+  {
+   "code": "CRT-3P-01",
+   "price": 615,
+   "normalized_inr": 6.15,
+   "status": "confirmed",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E15)",
+    "conflict": false
+   },
+   "reason": "High read confidence, strong match, number found in evidence, unit explicit, no assumptions."
+  },
+  {
+   "code": "CRT-3P-02",
+   "price": 940,
+   "normalized_inr": 9.4,
+   "status": "confirmed",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E16)",
+    "conflict": false
+   },
+   "reason": "High read confidence, strong match, number found in evidence, unit explicit, no assumptions."
+  },
+  {
+   "code": "CRT-3P-03",
+   "price": 470,
+   "normalized_inr": 4.7,
+   "status": "confirmed",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E17)",
+    "conflict": false
+   },
+   "reason": "High read confidence, strong match, number found in evidence, unit explicit, no assumptions."
+  },
+  {
+   "code": "CRT-3P-04",
+   "price": 1430,
+   "normalized_inr": 14.3,
+   "status": "confirmed",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E18)",
+    "conflict": false
+   },
+   "reason": "High read confidence, strong match, number found in evidence, unit explicit, no assumptions."
+  },
+  {
+   "code": "CRT-3P-05",
+   "price": 285,
+   "normalized_inr": 2.85,
+   "status": "needs_review",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E19)",
+    "conflict": false
+   },
+   "reason": "Match confidence 0.80 is below 0.85."
+  },
+  {
+   "code": "CRT-5P-01",
+   "price": 2740,
+   "normalized_inr": 27.4,
+   "status": "needs_review",
+   "flags": [
+    "board_grade_mismatch"
+   ],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E9)",
+    "conflict": false
+   },
+   "reason": "The vendor's prices are for BF 20; this RFx line needs BF 22. Vendor's own text: \"BF 22 on 5 ply: add Rs 0.80 per carton (RFx 5 ply lines specify BF 22).\". No adjusted price is computed."
+  },
+  {
+   "code": "CRT-5P-02",
+   "price": 2320,
+   "normalized_inr": 23.2,
+   "status": "needs_review",
+   "flags": [
+    "board_grade_mismatch"
+   ],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E10)",
+    "conflict": false
+   },
+   "reason": "The vendor's prices are for BF 20; this RFx line needs BF 22. Vendor's own text: \"BF 22 on 5 ply: add Rs 0.80 per carton (RFx 5 ply lines specify BF 22).\". No adjusted price is computed."
+  },
+  {
+   "code": "CRT-5P-03",
+   "price": 3640,
+   "normalized_inr": 36.4,
+   "status": "needs_review",
+   "flags": [
+    "board_grade_mismatch"
+   ],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E11)",
+    "conflict": false
+   },
+   "reason": "The vendor's prices are for BF 20; this RFx line needs BF 22. Vendor's own text: \"BF 22 on 5 ply: add Rs 0.80 per carton (RFx 5 ply lines specify BF 22).\". No adjusted price is computed."
+  },
+  {
+   "code": "CRT-5P-04",
+   "price": 5290,
+   "normalized_inr": 52.9,
+   "status": "needs_review",
+   "flags": [
+    "board_grade_mismatch"
+   ],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E12)",
+    "conflict": false
+   },
+   "reason": "The vendor's prices are for BF 20; this RFx line needs BF 25. Vendor's own text: \"Quoted for BF 20; RFx asks BF 25; BF 22 surcharge Rs 0.80 per carton\". No adjusted price is computed."
+  },
+  {
+   "code": "CRT-5P-05",
+   "price": 1590,
+   "normalized_inr": 15.9,
+   "status": "needs_review",
+   "flags": [
+    "board_grade_mismatch"
+   ],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E13)",
+    "conflict": false
+   },
+   "reason": "The vendor's prices are for BF 20; this RFx line needs BF 22. Vendor's own text: \"BF 22 on 5 ply: add Rs 0.80 per carton (RFx 5 ply lines specify BF 22).\". No adjusted price is computed."
+  },
+  {
+   "code": "CRT-5P-07",
+   "price": 1690,
+   "normalized_inr": 16.9,
+   "status": "needs_review",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E14)",
+    "conflict": false
+   },
+   "reason": "Match confidence 0.80 is below 0.85."
+  },
+  {
+   "code": "FLM-STR-01",
+   "price": 109,
+   "normalized_inr": 109,
+   "status": "confirmed",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E30)",
+    "conflict": false
+   },
+   "reason": "High read confidence, strong match, number found in evidence, unit explicit, no assumptions."
+  },
+  {
+   "code": "INS-EDG-01",
+   "price": 13.8,
+   "normalized_inr": 13.8,
+   "status": "needs_review",
+   "flags": [],
+   "assumptions": [
+    "unit_length"
+   ],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E25)",
+    "conflict": false
+   },
+   "reason": "Match confidence 0.80 is below 0.85."
+  },
+  {
+   "code": "INS-PAD-01",
+   "price": 36.5,
+   "normalized_inr": 36.5,
+   "status": "confirmed",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E27)",
+    "conflict": false
+   },
+   "reason": "High read confidence, strong match, number found in evidence, unit explicit, no assumptions."
+  },
+  {
+   "code": "INS-PRT-01",
+   "price": 9.5,
+   "normalized_inr": 9.5,
+   "status": "confirmed",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E24)",
+    "conflict": false
+   },
+   "reason": "High read confidence, strong match, number found in evidence, unit explicit, no assumptions."
+  },
+  {
+   "code": "INS-TRY-01",
+   "price": 12.1,
+   "normalized_inr": 12.1,
+   "status": "confirmed",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E26)",
+    "conflict": false
+   },
+   "reason": "High read confidence, strong match, number found in evidence, unit explicit, no assumptions."
+  },
+  {
+   "code": "PPR-KFT-01",
+   "price": 66.5,
+   "normalized_inr": 66.5,
+   "status": "confirmed",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E32)",
+    "conflict": false
+   },
+   "reason": "High read confidence, strong match, number found in evidence, unit explicit, no assumptions."
+  },
+  {
+   "code": "ROL-3P-01",
+   "price": 16.1,
+   "normalized_inr": 16.1,
+   "status": "confirmed",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E23)",
+    "conflict": false
+   },
+   "reason": "High read confidence, strong match, number found in evidence, unit explicit, no assumptions."
+  },
+  {
+   "code": "SHT-3P-01",
+   "price": 39.6,
+   "normalized_inr": 39.6,
+   "status": "confirmed",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E22)",
+    "conflict": false
+   },
+   "reason": "High read confidence, strong match, number found in evidence, unit explicit, no assumptions."
+  },
+  {
+   "code": "SHT-5P-01",
+   "price": 43.4,
+   "normalized_inr": 43.4,
+   "status": "confirmed",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E20)",
+    "conflict": false
+   },
+   "reason": "High read confidence, strong match, number found in evidence, unit explicit, no assumptions."
+  },
+  {
+   "code": "SHT-5P-02",
+   "price": 44.9,
+   "normalized_inr": 44.9,
+   "status": "confirmed",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E21)",
+    "conflict": false
+   },
+   "reason": "High read confidence, strong match, number found in evidence, unit explicit, no assumptions."
+  },
+  {
+   "code": "STP-PET-01",
+   "price": 127,
+   "normalized_inr": 127,
+   "status": "confirmed",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E31)",
+    "conflict": false
+   },
+   "reason": "High read confidence, strong match, number found in evidence, unit explicit, no assumptions."
+  },
+  {
+   "code": "TPE-BOPP-01",
+   "price": 45,
+   "normalized_inr": 45,
+   "status": "confirmed",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E28)",
+    "conflict": false
+   },
+   "reason": "High read confidence, strong match, number found in evidence, unit explicit, no assumptions."
+  },
+  {
+   "code": "TPE-BOPP-02",
+   "price": 27.5,
+   "normalized_inr": 27.5,
+   "status": "confirmed",
+   "flags": [],
+   "assumptions": [],
+   "tax": {
+    "basis": "excl_gst",
+    "rate_pct": null,
+    "rate_source": null,
+    "statement": "Basic rate (Rs) (E29)",
+    "conflict": false
+   },
+   "reason": "High read confidence, strong match, number found in evidence, unit explicit, no assumptions."
+  }
+ ],
+ "result_review": [],
+ "replies": [
+  {
+   "n": 1,
+   "max_tokens": 300,
+   "text": "```json\n{\n  \"kind\": \"quote\",\n  \"confidence\": 0.99,\n  \"reason\": \"Document contains detailed pricing for multiple packaging items with rates, units, and GST calculations.\"\n}\n```",
+   "stop_reason": "end_turn"
+  },
+  {
+   "n": 2,
+   "max_tokens": 16000,
+   "text": "{\"document\":{\"kind\":\"quote\",\"vendor_name_as_written\":\"METRO KRAFT PACKAGING CO.\",\"currency_default\":\"INR\",\"tax_basis\":\"excl_gst\",\"validity_text\":\"This offer is valid for 15 days from the date above.\",\"freight_terms\":\"extra\",\"freight_note\":\"Prices are ex-works Peenya. Freight and unloading extra at actuals.\",\"payment_terms_text\":\"100% advance for orders up to Rs 5 lakh; 30 days credit for larger orders.\",\"unit_definitions\":[],\"conditional_discounts\":[],\"global_notes\":[\"Carton rates are for BF 18 (3 ply) and BF 20 (5 ply) board.\",\"BF 22 on 5 ply: add Rs 0.80 per carton (RFx 5 ply lines specify BF 22).\",\"Items not listed above are not quoted.\",\"Carton lines carry both a basic rate and an incl-GST rate; basic rate used as price.\"],\"tax_statements\":[{\"quote\":\"GST extra as applicable.\",\"basis\":\"excl\",\"scope\":\"\",\"is_correction\":false},{\"quote\":\"Rates incl. GST shown for cartons for your convenience.\",\"basis\":\"incl\",\"scope\":\"cartons (column F, Rate incl. GST)\",\"is_correction\":false}],\"group_statements\":[]},\"lines\":[{\"rfx_line_code\":\"CRT-5P-01\",\"match_confidence\":0.85,\"match_reason\":\"18x12x10 in is about 450x300x250 mm; 5 ply; BF 20 vs BF 22\",\"vendor_description\":\"Brown corrugated box 5 ply 18 x 12 x 10 in\",\"price\":2740,\"currency\":\"INR\",\"uom_text\":\"per 100\",\"per_n\":100,\"conditions\":[\"Quoted for BF 20; BF 22 adds Rs 0.80 per carton\"],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E9\",\"quote\":\"E9: 2740\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Incl-GST column F9: 3233.2\"},{\"rfx_line_code\":\"CRT-5P-02\",\"match_confidence\":0.85,\"match_reason\":\"16x12x8 in is about 400x300x200 mm; 5 ply\",\"vendor_description\":\"Brown corrugated box 5 ply 16 x 12 x 8 in\",\"price\":2320,\"currency\":\"INR\",\"uom_text\":\"per 100\",\"per_n\":100,\"conditions\":[\"Quoted for BF 20; BF 22 adds Rs 0.80 per carton\"],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E10\",\"quote\":\"E10: 2320\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Incl-GST column F10: 2737.6\"},{\"rfx_line_code\":\"CRT-5P-03\",\"match_confidence\":0.85,\"match_reason\":\"20x14x12 in is about 500x350x300 mm; 5 ply\",\"vendor_description\":\"Brown corrugated box 5 ply 20 x 14 x 12 in\",\"price\":3640,\"currency\":\"INR\",\"uom_text\":\"per 100\",\"per_n\":100,\"conditions\":[\"Quoted for BF 20; BF 22 adds Rs 0.80 per carton\"],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E11\",\"quote\":\"E11: 3640\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Incl-GST column F11: 4295.2\"},{\"rfx_line_code\":\"CRT-5P-04\",\"match_confidence\":0.85,\"match_reason\":\"24x16x16 in is about 600x400x400 mm; 5 ply heavy duty\",\"vendor_description\":\"Brown corrugated box 5 ply 24 x 16 x 16 in, Heavy duty\",\"price\":5290,\"currency\":\"INR\",\"uom_text\":\"per 100\",\"per_n\":100,\"conditions\":[\"Quoted for BF 20; RFx asks BF 25; BF 22 surcharge Rs 0.80 per carton\"],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E12\",\"quote\":\"E12: 5290\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"BF 25 not addressed; incl-GST F12: 6242.2\"},{\"rfx_line_code\":\"CRT-5P-05\",\"match_confidence\":0.85,\"match_reason\":\"14x10x6 in is about 350x250x150 mm; 5 ply\",\"vendor_description\":\"Brown corrugated box 5 ply 14 x 10 x 6 in\",\"price\":1590,\"currency\":\"INR\",\"uom_text\":\"per 100\",\"per_n\":100,\"conditions\":[\"Quoted for BF 20; BF 22 adds Rs 0.80 per carton\"],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E13\",\"quote\":\"E13: 1590\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Incl-GST column F13: 1876.2\"},{\"rfx_line_code\":\"CRT-5P-07\",\"match_confidence\":0.8,\"match_reason\":\"12x8x4 in is about 300x200x100 mm; die cut mailer 5 ply\",\"vendor_description\":\"Die cut mailer box 5 ply 12 x 8 x 4 in\",\"price\":1690,\"currency\":\"INR\",\"uom_text\":\"per 100\",\"per_n\":100,\"conditions\":[\"Quoted for BF 20; BF 22 adds Rs 0.80 per carton\"],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E14\",\"quote\":\"E14: 1690\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Incl-GST column F14: 1994.2\"},{\"rfx_line_code\":\"CRT-3P-01\",\"match_confidence\":0.85,\"match_reason\":\"12x8x6 in is about 300x200x150 mm; 3 ply BF 18\",\"vendor_description\":\"Brown corrugated box 3 ply 12 x 8 x 6 in\",\"price\":615,\"currency\":\"INR\",\"uom_text\":\"per 100\",\"per_n\":100,\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E15\",\"quote\":\"E15: 615\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Alternative CRT-3P-06 is the printed version; incl-GST F15: 725.7\"},{\"rfx_line_code\":\"CRT-3P-02\",\"match_confidence\":0.85,\"match_reason\":\"14x10x8 in is about 350x250x200 mm; 3 ply BF 18\",\"vendor_description\":\"Brown corrugated box 3 ply 14 x 10 x 8 in\",\"price\":940,\"currency\":\"INR\",\"uom_text\":\"per 100\",\"per_n\":100,\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E16\",\"quote\":\"E16: 940\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Incl-GST column F16: 1109.2\"},{\"rfx_line_code\":\"CRT-3P-03\",\"match_confidence\":0.85,\"match_reason\":\"10x8x4 in is about 250x200x100 mm; 3 ply BF 18\",\"vendor_description\":\"Brown corrugated box 3 ply 10 x 8 x 4 in\",\"price\":470,\"currency\":\"INR\",\"uom_text\":\"per 100\",\"per_n\":100,\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E17\",\"quote\":\"E17: 470\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Incl-GST column F17: 554.6\"},{\"rfx_line_code\":\"CRT-3P-04\",\"match_confidence\":0.85,\"match_reason\":\"16x12x10 in is about 400x300x250 mm; 3 ply BF 18\",\"vendor_description\":\"Brown corrugated box 3 ply 16 x 12 x 10 in\",\"price\":1430,\"currency\":\"INR\",\"uom_text\":\"per 100\",\"per_n\":100,\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E18\",\"quote\":\"E18: 1430\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Incl-GST column F18: 1687.4\"},{\"rfx_line_code\":\"CRT-3P-05\",\"match_confidence\":0.8,\"match_reason\":\"8x6x3 in is about 200x150x80 mm; 3 ply mono carton\",\"vendor_description\":\"Mono carton 3 ply 8 x 6 x 3 in\",\"price\":285,\"currency\":\"INR\",\"uom_text\":\"per 100\",\"per_n\":100,\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E19\",\"quote\":\"E19: 285\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Incl-GST column F19: 336.3\"},{\"rfx_line_code\":\"SHT-5P-01\",\"match_confidence\":0.95,\"match_reason\":\"Size 1100x1500 mm, 5 ply, per kg agree\",\"vendor_description\":\"Corrugated sheet 5 ply 1100 x 1500 mm\",\"price\":43.4,\"currency\":\"INR\",\"uom_text\":\"per kg\",\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E20\",\"quote\":\"E20: 43.4\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"BF grade not stated for sheet\"},{\"rfx_line_code\":\"SHT-5P-02\",\"match_confidence\":0.95,\"match_reason\":\"Size 1250x1800 mm, 5 ply, per kg agree\",\"vendor_description\":\"Corrugated sheet 5 ply 1250 x 1800 mm\",\"price\":44.9,\"currency\":\"INR\",\"uom_text\":\"per kg\",\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E21\",\"quote\":\"E21: 44.9\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"BF grade not stated for sheet\"},{\"rfx_line_code\":\"SHT-3P-01\",\"match_confidence\":0.95,\"match_reason\":\"Size 1000x1400 mm, 3 ply, per kg agree\",\"vendor_description\":\"Corrugated sheet 3 ply 1000 x 1400 mm\",\"price\":39.6,\"currency\":\"INR\",\"uom_text\":\"per kg\",\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E22\",\"quote\":\"E22: 39.6\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"ROL-3P-01\",\"match_confidence\":0.95,\"match_reason\":\"3 ply roll, 1000 mm wide, per sq m agree\",\"vendor_description\":\"Corrugated roll 3 ply 1000 mm wide\",\"price\":16.1,\"currency\":\"INR\",\"uom_text\":\"per sq m\",\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E23\",\"quote\":\"E23: 16.1\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"INS-PRT-01\",\"match_confidence\":0.85,\"match_reason\":\"3x2 cell 5 ply partition for 18x12x10 in box\",\"vendor_description\":\"Partition set 5 ply 3 x 2 cell, for 18x12x10 in box\",\"price\":9.5,\"currency\":\"INR\",\"uom_text\":\"per set\",\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E24\",\"quote\":\"E24: 9.5\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"INS-EDG-01\",\"match_confidence\":0.8,\"match_reason\":\"50x50x4 mm edge protector; vendor unit per mtr vs RFx 1000 mm piece\",\"vendor_description\":\"Edge protector paper board 50 x 50 x 4 mm\",\"price\":13.8,\"currency\":\"INR\",\"uom_text\":\"per mtr\",\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E25\",\"quote\":\"E25: 13.8\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\",\"notes\":\"Unit is per metre, not per piece\"},{\"rfx_line_code\":\"INS-TRY-01\",\"match_confidence\":0.95,\"match_reason\":\"Die cut tray 380x280x40 mm agrees\",\"vendor_description\":\"Die cut tray corrugated 380 x 280 x 40 mm\",\"price\":12.1,\"currency\":\"INR\",\"uom_text\":\"per pc\",\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E26\",\"quote\":\"E26: 12.1\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"INS-PAD-01\",\"match_confidence\":0.95,\"match_reason\":\"Layer pad 1000x1200 mm agrees\",\"vendor_description\":\"Layer pad corrugated 1000 x 1200 mm\",\"price\":36.5,\"currency\":\"INR\",\"uom_text\":\"per pc\",\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E27\",\"quote\":\"E27: 36.5\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"TPE-BOPP-01\",\"match_confidence\":0.95,\"match_reason\":\"BOPP brown 48 mm x 100 m agrees\",\"vendor_description\":\"BOPP tape brown 48 mm x 100 m\",\"price\":45,\"currency\":\"INR\",\"uom_text\":\"per roll\",\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E28\",\"quote\":\"E28: 45\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"TPE-BOPP-02\",\"match_confidence\":0.95,\"match_reason\":\"BOPP clear 48 mm x 50 m agrees\",\"vendor_description\":\"BOPP tape clear 48 mm x 50 m\",\"price\":27.5,\"currency\":\"INR\",\"uom_text\":\"per roll\",\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E29\",\"quote\":\"E29: 27.5\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"FLM-STR-01\",\"match_confidence\":0.95,\"match_reason\":\"Stretch film 500 mm, 23 micron agrees\",\"vendor_description\":\"Stretch film 500 mm, 23 micron\",\"price\":109,\"currency\":\"INR\",\"uom_text\":\"per kg\",\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E30\",\"quote\":\"E30: 109\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"STP-PET-01\",\"match_confidence\":0.95,\"match_reason\":\"PET strap 15 mm agrees\",\"vendor_description\":\"PET strap 15 mm\",\"price\":127,\"currency\":\"INR\",\"uom_text\":\"per kg\",\"conditions\":[],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E31\",\"quote\":\"E31: 127\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"},{\"rfx_line_code\":\"PPR-KFT-01\",\"match_confidence\":0.95,\"match_reason\":\"Kraft void fill 50 gsm, 750 mm agrees\",\"vendor_description\":\"Kraft paper roll (void fill) 50 gsm, 750 mm\",\"price\":66.5,\"currency\":\"INR\",\"uom_text\":\"per kg\",\"conditions\":[\"Subject to availability\"],\"tax_basis\":\"excl\",\"tax_source_quote\":\"GST extra as applicable.\",\"evidence\":{\"source_type\":\"xlsx\",\"locator\":\"Sheet 'Quote'!E32\",\"quote\":\"E32: 66.5\",\"read_confidence\":\"high\"},\"read_confidence\":\"high\"}],\"unmatched_lines\":[]}",
+   "stop_reason": "end_turn"
+  }
+ ]
+}

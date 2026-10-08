@@ -41,6 +41,7 @@ export function deriveCell(cell: GridCell, base: { uom: string; ly: number | nul
     scope_text: raw.scope_text,
     model_tax: raw.model_tax ?? null,
     doc_tax_statements: raw.doc_tax_statements ?? [],
+    header_tax: raw.header_tax ?? null,
   };
   const r = recomputeLine(stored, a);
   return {

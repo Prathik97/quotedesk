@@ -7,6 +7,8 @@
 //   - a line that contradicts itself has no usable basis.
 // It never decides a price. normalizePrice divides by 1 plus the stated rate; this only says which rate and why.
 
+import type { HeaderTax } from './tax-header';
+
 export type TaxStatement = { basis: 'incl' | 'excl'; rate_pct: number | null; text: string; blanket: boolean };
 
 const TAX = '(?:gst|taxes|tax|vat)';
@@ -95,7 +97,7 @@ export type TaxResolution = {
   basis: 'excl_gst' | 'incl_gst' | 'unknown';
   /** The rate the vendor stated for an inclusive price. null means none was stated and the assumed rate applies. */
   rate_pct: number | null;
-  source: 'line' | 'document' | 'notes' | 'model' | 'none';
+  source: 'line' | 'document' | 'notes' | 'model' | 'header' | 'none';
   /** The vendor's own words that the basis rests on. */
   statement: string | null;
   /** Two statements in the document that disagree and affect this line. */
@@ -108,6 +110,8 @@ export type TaxResolution = {
    * inclusive reading, used only to print the two readings as text.
    */
   guard: TaxGuard | null;
+  /** The price was read from the including-tax column of a row that also has a basic column, or matches neither. No price is derived. */
+  header_problem?: { kind: 'incl_column_read' | 'evidence_mismatch'; text: string } | null;
 };
 
 export type TaxGuard = { why: 'conflict' | 'scoped'; statements: string[]; rate_pct: number | null };
@@ -348,7 +352,30 @@ export type TaxInput = {
   /** The model's resolution for this line, and the document statements it reported (verified ones only). */
   model_tax?: ModelTax | null;
   doc_statements?: DocTaxStatement[];
+  /**
+   * The basis the line's own price column header states (K5), read from the sheet. When present it is the line's own
+   * statement: it overrides the document basis, the model's notes and the model's resolution, none of which are read.
+   */
+  header_tax?: HeaderTax | null;
 };
+
+/** A line whose price column header states a basis. Only prose in the sheet's own text can oppose it. */
+function resolveHeader(i: TaxInput, h: HeaderTax): TaxResolution {
+  const none = { rate_pct: null, conflict: null, contradiction: null, guard: null } as const;
+  const statement = `${h.header} (${h.cell})`;
+  if (h.problem) return { ...none, basis: 'unknown', source: 'none', statement, header_problem: h.problem };
+  const lineText = i.scope_text ?? '';
+  const prose = h.prose.filter((d) => d.basis && scopeCovers(scopeOf(d.quote), lineText));
+  const opposing = prose.filter((d) => d.basis !== h.basis);
+  // The sheet's own header says one thing and its own prose says the other about this line. Neither is chosen.
+  if (opposing.length > 0) {
+    const inclRates = [...new Set(prose.filter((d) => d.basis === 'incl' && d.rate_pct != null).map((d) => d.rate_pct as number)), ...(h.basis === 'incl' && h.rate_pct != null ? [h.rate_pct] : [])];
+    return { ...none, basis: 'unknown', source: 'none', statement: null, guard: { why: 'conflict', statements: [`${h.header} (${h.cell})`, ...opposing.map((d) => d.quote)], rate_pct: inclRates.length === 1 ? (inclRates[0] as number) : null } };
+  }
+  if (h.basis === 'excl') return { ...none, basis: 'excl_gst', source: 'header', statement };
+  const proseRates = [...new Set(prose.filter((d) => d.basis === 'incl' && d.rate_pct != null).map((d) => d.rate_pct as number))];
+  return { ...none, basis: 'incl_gst', rate_pct: h.rate_pct ?? (proseRates.length === 1 ? (proseRates[0] as number) : null), source: 'header', statement };
+}
 
 /**
  * What a line's price is quoted on, with the safety rule on top (resolveBase decides, this guards).
@@ -356,6 +383,7 @@ export type TaxInput = {
  * otherwise than the basis the line would get, has no derived price unless the model's resolution is verified.
  */
 export function resolveTax(input: TaxInput): TaxResolution {
+  if (input.header_tax) return resolveHeader(input, input.header_tax);
   // Statements in the document text and the verified ones the model reported are read as document level notes, so the
   // guard does not depend on whether the model put them in the notes.
   const i: TaxInput = { ...input, notes: [...input.notes, ...(input.doc_statements ?? []).map((d) => d.quote)] };

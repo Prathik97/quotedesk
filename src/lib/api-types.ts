@@ -2,6 +2,7 @@
 import type { CellStatus, CertaintyCounts, Readiness } from '../../engine/certainty';
 import type { SizeCheck } from '../../engine/dimensions';
 import type { DocTaxStatement, ModelTax } from '../../engine/tax';
+import type { HeaderTax } from '../../engine/tax-header';
 import type { ConversionTrace } from '../../engine/recompute';
 
 export type { CellStatus, CertaintyCounts, Readiness };
@@ -89,6 +90,7 @@ export type CellRaw = {
   scope_text?: string;
   model_tax?: ModelTax | null;
   doc_tax_statements?: DocTaxStatement[];
+  header_tax?: HeaderTax | null;
 };
 
 export type GridCell = {

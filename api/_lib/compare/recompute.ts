@@ -6,6 +6,7 @@ import type { SizeCheck } from '../../../engine/dimensions.js';
 import { recomputeLine, STICKY_FLAGS, type LineOverrides, type StoredLine } from '../../../engine/recompute.js';
 import type { Assumptions, BaseUom, ReadConfidence, SourceType, UnitDefinition } from '../../../engine/types.js';
 import type { DocTaxStatement, ModelTax } from '../../../engine/tax.js';
+import type { HeaderTax } from '../../../engine/tax-header.js';
 import { conversionJson } from '../extract/persist.js';
 import { reconcilePrices } from '../extract/reconcile.js';
 import { loadAssumptions } from './assumptions.js';
@@ -18,7 +19,7 @@ type Row = {
   uom_text: string | null;
   currency: string | null;
   price_basis: { tax?: StoredLine['tax_basis']; per_n?: number; inherits_last_year?: boolean };
-  conversion: { read_confidence?: ReadConfidence; notes_from_model?: string; size_check?: SizeCheck; duplicate_rfx_match?: string; tax_inputs?: { model_tax?: ModelTax | null; doc_tax_statements?: DocTaxStatement[] } } | null;
+  conversion: { read_confidence?: ReadConfidence; notes_from_model?: string; size_check?: SizeCheck; duplicate_rfx_match?: string; tax_inputs?: { model_tax?: ModelTax | null; doc_tax_statements?: DocTaxStatement[]; header_tax?: HeaderTax | null } } | null;
   flags: string[];
   source_type: SourceType | null;
   evidence: { quote?: string | null; locator?: string | null; read_confidence?: ReadConfidence } | null;
@@ -89,6 +90,7 @@ function toStored(row: Row): StoredLine {
     scope_text: row.scope_text,
     model_tax: row.conversion?.tax_inputs?.model_tax ?? null,
     doc_tax_statements: row.conversion?.tax_inputs?.doc_tax_statements ?? [],
+    header_tax: row.conversion?.tax_inputs?.header_tax ?? null,
   };
 }
 

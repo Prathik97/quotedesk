@@ -36,10 +36,10 @@ const extraction = (doc: Record<string, unknown> = {}, over: Record<string, Reco
   });
 
 // Different column labels from the live file: "Excl tax rate" and "Rate with GST".
-const SHEET = (note: string) => [
+const SHEET = (note: string, rateHeader = 'Excl tax rate (Rs)') => [
   "=== Sheet 'Rates' ===",
   'A1: ZENITH PACK',
-  'A3: No | B3: Particulars | C3: Pack | D3: Excl tax rate (Rs) | E3: Rate with GST (Rs) | F3: Remarks',
+  `A3: No | B3: Particulars | C3: Pack | D3: ${rateHeader} | E3: Rate with GST (Rs) | F3: Remarks`,
   'A5: 1 | B5: Carton 450x300x250 | C5: per 100 | D5: 3100 | E5: 3472',
   'A6: 2 | B6: Carton 400x300x200 | C6: per 100 | D6: 2500 | E6: 2800',
   'A7: 3 | B7: Stretch film 500mm | C7: per kg | D7: 120',
@@ -87,7 +87,8 @@ describe('K1: a sheet whose note really says the quoted prices include tax', () 
   });
   it('a document that says so and whose basis is incl converts the lines at the stated rate', () => {
     const note = 'All prices quoted include 12 percent GST.';
-    const r = derive(SHEET(note), extraction({ tax_basis: 'incl_gst', global_notes: [note] }));
+    // The sheet's rate column has a neutral header here, so the document level statement is what decides.
+    const r = derive(SHEET(note, 'Rate (Rs)'), extraction({ tax_basis: 'incl_gst', global_notes: [note] }));
     expect(r.by('FLM-A')?.normalized).toBeCloseTo(120 / 1.12, 10);
     expect(r.by('FLM-A')?.result?.tax?.rate_pct).toBe(12);
   });

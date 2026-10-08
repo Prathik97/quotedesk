@@ -104,6 +104,7 @@ export async function loadCompare(pool: pg.Pool): Promise<CompareResponse> {
           scope_text: [rw.vdesc, rw.quote, [lineById.get(c.rfx_line_id)?.description, lineById.get(c.rfx_line_id)?.spec].filter(Boolean).join(' ; '), lineById.get(c.rfx_line_id)?.section].filter((v) => v != null).join(' ; '),
           model_tax: rw.tax_inputs?.model_tax ?? null,
           doc_tax_statements: rw.tax_inputs?.doc_tax_statements ?? [],
+          header_tax: rw.tax_inputs?.header_tax ?? null,
           vendor_notes: ((termsByVendor.get(c.vendor_id)?.global_notes ?? []) as Json[]).filter((x) => !x.document_id || x.document_id === rw?.doc).map((x) => String(x.text)),
         }
       : null,
