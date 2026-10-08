@@ -14,6 +14,28 @@ const num = z.preprocess((v) => {
 const conf01 = z.preprocess((v) => (typeof v === 'string' ? Number(v) : v), z.number().min(0).max(1));
 const readConf = z.enum(['high', 'medium', 'low']);
 
+// Tax fields are an aid, never a reason to reject a reply: anything unreadable becomes "not given".
+const taxBasisField = z.preprocess((v) => {
+  if (typeof v !== 'string') return null;
+  const t = v.toLowerCase();
+  return /incl/.test(t) ? 'incl' : /excl|extra/.test(t) ? 'excl' : null;
+}, z.enum(['incl', 'excl']).nullable());
+const taxRateField = z.preprocess((v) => {
+  const n = typeof v === 'string' ? Number(v.replace('%', '').trim()) : v;
+  return typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 40 ? n : null;
+}, z.number().nullable());
+const textOrNull = z.preprocess((v) => (typeof v === 'string' && v.trim() ? v : null), z.string().nullable());
+
+/** One tax statement the vendor made for the whole document, in the vendor's own words. */
+export const TaxStatementSchema = z.object({
+  quote: textOrNull,
+  basis: taxBasisField.default(null),
+  rate_pct: taxRateField.default(null),
+  scope: z.preprocess((v) => (typeof v === 'string' ? v : ''), z.string()).default(''),
+  is_correction: z.preprocess((v) => v === true, z.boolean()).default(false),
+});
+export type ModelTaxStatement = z.infer<typeof TaxStatementSchema>;
+
 export const EvidenceSchema = z.object({
   source_type: z.enum(['xlsx', 'pdf', 'docx', 'image', 'email']),
   locator: z.string().min(1),
@@ -45,6 +67,10 @@ export const ExtractedLineSchema = z.object({
   // Optional: when omitted, the evidence's own read confidence applies (same reading).
   read_confidence: readConf.optional(),
   notes: z.string().nullable().optional().default(''),
+  // What the model resolved about tax for this line after applying the vendor's corrections. Code verifies it.
+  tax_basis: taxBasisField.optional(),
+  tax_rate_pct: taxRateField.optional(),
+  tax_source_quote: textOrNull.optional(),
 }).transform((l) => ({ ...l, read_confidence: l.read_confidence ?? l.evidence.read_confidence }));
 export type ExtractedLine = z.infer<typeof ExtractedLineSchema>;
 
@@ -93,6 +119,9 @@ export const ExtractionSchema = z.object({
     global_notes: z.array(z.string()).default([]),
     suspicious_content: z.array(z.object({ text: z.string(), evidence: evidenceOrNull })).default([]),
     group_statements: z.array(GroupStatementSchema).default([]),
+    tax_statements: z
+      .preprocess((v) => (Array.isArray(v) ? v.filter((x) => TaxStatementSchema.safeParse(x).success && typeof x?.quote === 'string' && x.quote.trim() !== '') : []), z.array(TaxStatementSchema))
+      .default([]),
   }),
   lines: z.array(ExtractedLineSchema).default([]),
   unmatched_lines: z.array(z.object({ vendor_description: z.string(), reason: z.string().default('') })).default([]),

@@ -68,6 +68,8 @@ export type StageOptions = {
   deps: CallDeps;
   models: { fast: string; extract: string };
   base: Pick<CallContext, 'route' | 'run_id' | 'session_id' | 'fresh'>;
+  /** Extraction prompt to use. The stored pipeline keeps extract.v3 so its cached replies stay valid; Try your file asks for extract.v4. */
+  extract_prompt?: string;
 };
 
 export const MAX_TOKENS = {
@@ -150,7 +152,7 @@ export async function classify(prep: Prepared, doc: DocMeta, opts: StageOptions)
 }
 
 export async function extract(prep: Prepared, doc: DocMeta, rfx: RfxContext, opts: StageOptions): Promise<Validated<Extraction>> {
-  const p = loadPrompt('extract.v3');
+  const p = loadPrompt(opts.extract_prompt ?? 'extract.v3');
   const req: LlmRequest = {
     model: opts.models.extract,
     max_tokens: MAX_TOKENS.extract[prep.source_type],

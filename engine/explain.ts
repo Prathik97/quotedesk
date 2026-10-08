@@ -38,6 +38,8 @@ export function assumptionText(key: string, a: Assumptions): string {
       return 'The vendor said the price is the same as last year and gave no number, so last year\'s contract rate is used.';
     case 'tax_basis_assumed_excl':
       return 'The document does not say whether GST is included. It is read as excluding GST, which is what the RFx asked for.';
+    case 'tax_basis_model':
+      return 'The model settled the tax basis of this line from the vendor\'s own words (the quote is in the document). A person has not checked it.';
     default:
       return `Assumption: ${key}.`;
   }

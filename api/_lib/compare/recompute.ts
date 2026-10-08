@@ -5,6 +5,7 @@ import type pg from 'pg';
 import type { SizeCheck } from '../../../engine/dimensions.js';
 import { recomputeLine, STICKY_FLAGS, type LineOverrides, type StoredLine } from '../../../engine/recompute.js';
 import type { Assumptions, BaseUom, ReadConfidence, SourceType, UnitDefinition } from '../../../engine/types.js';
+import type { DocTaxStatement, ModelTax } from '../../../engine/tax.js';
 import { conversionJson } from '../extract/persist.js';
 import { reconcilePrices } from '../extract/reconcile.js';
 import { loadAssumptions } from './assumptions.js';
@@ -17,7 +18,7 @@ type Row = {
   uom_text: string | null;
   currency: string | null;
   price_basis: { tax?: StoredLine['tax_basis']; per_n?: number; inherits_last_year?: boolean };
-  conversion: { read_confidence?: ReadConfidence; notes_from_model?: string; size_check?: SizeCheck; duplicate_rfx_match?: string } | null;
+  conversion: { read_confidence?: ReadConfidence; notes_from_model?: string; size_check?: SizeCheck; duplicate_rfx_match?: string; tax_inputs?: { model_tax?: ModelTax | null; doc_tax_statements?: DocTaxStatement[] } } | null;
   flags: string[];
   source_type: SourceType | null;
   evidence: { quote?: string | null; locator?: string | null; read_confidence?: ReadConfidence } | null;
@@ -33,6 +34,7 @@ type Row = {
   unit_definitions: { term: string; means_quantity: number | null; means_unit: string | null; document_id?: string; evidence?: { quote?: string | null } | null }[] | null;
   conditions: string[] | null;
   rfx_text: string;
+  scope_text: string;
   global_notes: { text: string; document_id?: string }[] | null;
 };
 
@@ -47,7 +49,7 @@ async function loadRows(pool: pg.Pool, vendorIds?: string[]): Promise<Row[]> {
   const r = await pool.query<Row>(
     `select q.id, q.vendor_id, q.source_document_id, q.quoted_price::float8 as price, q.quoted_uom_text as uom_text, q.quoted_currency as currency,
             q.price_basis, q.conversion, q.flags, q.source_type, q.evidence, q.match_confidence::float8 as match_confidence, q.overrides,
-            l.uom, l.last_year_rate_inr::float8 as ly, t.unit_definitions, t.global_notes, q.conditions, concat_ws(' ; ', l.description, l.spec) as rfx_text, l.code, l.annual_qty::float8 as annual_qty,
+            l.uom, l.last_year_rate_inr::float8 as ly, t.unit_definitions, t.global_notes, q.conditions, concat_ws(' ; ', l.description, l.spec) as rfx_text, concat_ws(' ; ', q.vendor_description, q.evidence->>'quote', concat_ws(' ; ', l.description, l.spec), l.section) as scope_text, l.code, l.annual_qty::float8 as annual_qty,
             q.normalized_price_inr::float8 as old_price, coalesce(q.conversion->>'base_status', q.status) as old_status, v.vendor_key
      from quote_lines q join rfx_lines l on l.id = q.rfx_line_id join vendors v on v.id = q.vendor_id left join vendor_terms t on t.vendor_id = q.vendor_id
      where ($1::uuid[] is null or q.vendor_id = any($1))`,
@@ -84,6 +86,9 @@ function toStored(row: Row): StoredLine {
     vendor_notes: (row.global_notes ?? []).filter((n) => !n.document_id || n.document_id === row.source_document_id).map((n) => n.text),
     size_check: row.conversion?.size_check ?? null,
     duplicate_rfx_match: row.conversion?.duplicate_rfx_match ?? null,
+    scope_text: row.scope_text,
+    model_tax: row.conversion?.tax_inputs?.model_tax ?? null,
+    doc_tax_statements: row.conversion?.tax_inputs?.doc_tax_statements ?? [],
   };
 }
 
@@ -177,6 +182,7 @@ export async function recompute(pool: pg.Pool, opts: { vendorIds?: string[]; /**
         notes_from_model: row.conversion?.notes_from_model ?? '',
         ...(row.conversion?.size_check ? { size_check: row.conversion.size_check } : {}),
         ...(row.conversion?.duplicate_rfx_match ? { duplicate_rfx_match: row.conversion.duplicate_rfx_match } : {}),
+        ...(row.conversion?.tax_inputs ? { tax_inputs: row.conversion.tax_inputs } : {}),
       }),
       p: r.pack_size,
     };

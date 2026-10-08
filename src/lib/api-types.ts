@@ -1,6 +1,7 @@
 // Shapes returned by /api/*. Shared by the handlers and the React app.
 import type { CellStatus, CertaintyCounts, Readiness } from '../../engine/certainty';
 import type { SizeCheck } from '../../engine/dimensions';
+import type { DocTaxStatement, ModelTax } from '../../engine/tax';
 import type { ConversionTrace } from '../../engine/recompute';
 
 export type { CellStatus, CertaintyCounts, Readiness };
@@ -84,6 +85,10 @@ export type CellRaw = {
   /** Size check and duplicate match decided at extraction (engine/dimensions.ts), carried so a recompute keeps them. */
   size_check?: SizeCheck | null;
   duplicate_rfx_match?: string | null;
+  /** The line's own words, its RFx line and section, and the model's checked tax resolution. The engine judges which document tax statements could apply to the line on them. */
+  scope_text?: string;
+  model_tax?: ModelTax | null;
+  doc_tax_statements?: DocTaxStatement[];
 };
 
 export type GridCell = {

@@ -15,17 +15,23 @@ const seed = JSON.parse(readFileSync(new URL('../../../seed/rfx.json', import.me
 };
 const rfx: RfxLineRow[] = seed.lines.map((l, i) => ({ id: `seed-${i}`, code: l.code, section: l.section, description: l.description, uom: l.uom, annual_qty: l.annual_qty, last_year_rate_inr: l.ly_rate }));
 
-function replay(name: string, source_type: 'xlsx' | 'email') {
+function replay(name: string, source_type: 'xlsx' | 'email', edit?: (x: Extraction) => void) {
   const fx = JSON.parse(readFileSync(new URL(`../../../eval/fixtures/${name}.raw.json`, import.meta.url), 'utf8')) as { global_notes: string[]; replies: { text: string }[] };
   const reply = fx.replies.find((r) => /"document"\s*:/.test(r.text));
   const x: Extraction = ExtractionSchema.parse(parseJsonLoose(reply?.text ?? ''));
+  edit?.(x);
   const derived = deriveLines({ source_type, observations: [] } as unknown as Prepared, x, rfx, { usd_inr: 96, gst_pct: 18 });
   const by = (code: string) => derived.find((d) => d.rfx?.code === code);
   return { fx, x, derived, by };
 }
 
-describe('Metro Kraft raw reply (xlsx)', () => {
-  const r = replay('sandbox-metro-kraft', 'xlsx');
+// The carton rule below is about units and board grades, not tax. Metro Kraft's note "Rates incl. GST shown for cartons
+// only" is a tax statement with a scope (DECISIONS D116), which makes every carton line Not derived (tested after
+// these). To keep the unit and grade rules pinned, they are tested on the same reply without that one note.
+const withoutCartonTaxNote = (x: Extraction) => { x.document.global_notes = x.document.global_notes.filter((n) => !/incl\.? GST/i.test(n)); };
+
+describe('Metro Kraft raw reply (xlsx), tax note removed so the unit and grade rules are tested alone', () => {
+  const r = replay('sandbox-metro-kraft', 'xlsx', withoutCartonTaxNote);
   it('the model did capture the quote level notes, validity and payment', () => {
     expect(r.x.document.global_notes.join(' ')).toMatch(/BF 18 \(3 ply\) and BF 20 \(5 ply\)/);
     expect(r.x.document.global_notes.join(' ')).toMatch(/BF 22 on 5 ply: add Rs 0\.80/);
@@ -60,6 +66,25 @@ describe('Metro Kraft raw reply (xlsx)', () => {
   });
   it('15 day validity warns against the 90 days the RFx asks for (F4)', () => {
     expect(shortValidityWarning(r.x.document.validity_text, seed.rfx.validity_days)).toBe('Offer valid for 15 days, shorter than the 90 days the RFx asks for.');
+  });
+});
+
+describe('Metro Kraft raw reply (xlsx), as captured: a scoped tax statement makes the lines it could cover Not derived (H1)', () => {
+  const r = replay('sandbox-metro-kraft', 'xlsx');
+  it('cartons and the partition set that names a carton are Not derived, the price shown as written, Needs review', () => {
+    for (const code of ['CRT-3P-01', 'CRT-3P-02', 'CRT-5P-07', 'INS-PRT-01']) {
+      const d = r.by(code);
+      expect(d?.normalized, code).toBeNull();
+      expect(d?.status, code).toBe('needs_review');
+      expect(d?.flags, code).toContain('tax_unresolved');
+      expect(d?.reasons.join(' '), code).toMatch(/^Not derived: /);
+    }
+  });
+  it('lines that name no carton keep their value and status (a sheet, tape, film are outside the statement)', () => {
+    expect(r.by('SHT-3P-01')?.normalized).toBeCloseTo(39.6, 10);
+    expect(r.by('SHT-3P-01')?.status).toBe('confirmed');
+    expect(r.by('TPE-BOPP-01')?.status).toBe('confirmed');
+    expect(r.by('FLM-STR-01')?.status).toBe('confirmed');
   });
 });
 

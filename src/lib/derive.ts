@@ -38,6 +38,9 @@ export function deriveCell(cell: GridCell, base: { uom: string; ly: number | nul
     vendor_notes: raw.vendor_notes ?? [],
     size_check: raw.size_check ?? null,
     duplicate_rfx_match: raw.duplicate_rfx_match ?? null,
+    scope_text: raw.scope_text,
+    model_tax: raw.model_tax ?? null,
+    doc_tax_statements: raw.doc_tax_statements ?? [],
   };
   const r = recomputeLine(stored, a);
   return {

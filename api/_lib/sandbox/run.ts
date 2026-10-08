@@ -159,7 +159,7 @@ export async function runSandbox(input: SandboxInput, ctx: SandboxContext, deps:
   const sha = createHash('sha256').update(input.bytes).digest('hex');
   const meta = { id, filename: input.filename, sha256: sha };
   // Never read from or written to the shared reply cache: this is the visitor's own file, read live.
-  const stage: StageOptions = { deps, models: o.models, base: { route: o.route, run_id: id, session_id: o.session_id, fresh: true } };
+  const stage: StageOptions = { deps, models: o.models, extract_prompt: 'extract.v4', base: { route: o.route, run_id: id, session_id: o.session_id, fresh: true } };
   const usage = { cost_inr: 0, model_calls: 0, tokens_in: 0, tokens_out: 0, repaired: false };
   const tally = (calls: { cache_hit: boolean; cost_inr: number; usage: { input_tokens: number; output_tokens: number; cache_read_input_tokens: number; cache_creation_input_tokens: number } }[]) => {
     for (const c of calls) {
@@ -252,10 +252,29 @@ export async function runSandbox(input: SandboxInput, ctx: SandboxContext, deps:
   for (const s of x.data.document.suspicious_content) {
     review.push({ kind: 'suspicious_content', severity: 'warn', message: `Instruction like text in ${input.filename} (${s.evidence?.locator ?? 'location not given'}), ignored: "${s.text.slice(0, 300)}"` });
   }
-  // Tax statements that disagree, quoted once each. The lines they touch are held at Assumed at most.
+  // Tax statements that disagree, quoted once each, with what was actually done to the lines they touch.
   const taxConflicts = uniqueConflicts(derived.map((d) => d.result?.tax?.conflict ?? null));
+  const taxOutcome = (ds: typeof derived): string => {
+    const notDerived = ds.filter((d) => d.result?.tax?.guard).length;
+    const converted = ds.filter((d) => d.result?.tax?.basis === 'incl_gst' && d.normalized != null).length;
+    const stated = ds.filter((d) => d.result?.tax?.basis === 'incl_gst' && d.result?.tax?.rate_pct != null && d.normalized != null).length;
+    const model = ds.filter((d) => d.result?.tax?.source === 'model').length;
+    const parts = [
+      notDerived > 0 ? `${notDerived} ${notDerived === 1 ? 'line is' : 'lines are'} shown as Not derived (the price as the vendor wrote it, no price excluding GST)` : null,
+      converted > 0 ? `${converted} ${converted === 1 ? 'line is' : 'lines are'} converted to a price excluding GST (${stated} at the vendor's stated rate${converted - stated > 0 ? `, ${converted - stated} at the assumed rate` : ''})` : null,
+      model > 0 ? `${model} ${model === 1 ? 'line was' : 'lines were'} settled by the model's reading of the vendor's words, which code checked against the document` : null,
+    ].filter(Boolean);
+    return parts.length ? `${parts.join('; ')}.` : 'No line was converted.';
+  };
   for (const c of taxConflicts) {
-    review.push({ kind: 'tax_conflict', severity: 'warn', message: `${conflictText(c)} Lines that depend on them are held at Assumed at most, never Confirmed. Prices stated as including GST are shown without it, at the rate the vendor stated.` });
+    const touched = derived.filter((d) => { const k = d.result?.tax?.conflict; return k != null && k.a === c.a && k.b === c.b; });
+    review.push({ kind: 'tax_conflict', severity: 'warn', message: `${conflictText(c)} Of the ${touched.length} lines it touches, ${taxOutcome(touched)} None is Confirmed.` });
+  }
+  // A scoped statement that may apply to lines with no tax statement of their own, in a document with no conflict.
+  const scopedOnly = derived.filter((d) => d.result?.tax?.guard && !d.result.tax.conflict);
+  if (scopedOnly.length > 0) {
+    const said = [...new Set(scopedOnly.flatMap((d) => d.result?.tax?.guard?.statements ?? []))].map((t) => `"${t}"`).join(' and ');
+    review.push({ kind: 'tax_not_derived', severity: 'warn', message: `The vendor made a tax statement that may apply to lines with no tax statement of their own: ${said}. ${taxOutcome(scopedOnly)}` });
   }
   const dupCodes = [...new Set(derived.filter((d) => d.result?.flags.includes('duplicate_rfx_match')).map((d) => d.rfx?.code ?? ''))].filter(Boolean);
   for (const code of dupCodes) {

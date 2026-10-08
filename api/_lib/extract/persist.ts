@@ -4,6 +4,7 @@ import type pg from 'pg';
 import type { Assumptions, BaseUom, UnitDefinition } from '../../../engine/types.js';
 import { sizeCheck, type SizeCheck } from '../../../engine/dimensions.js';
 import { READ_SCORE, recomputeLine, type LineResult } from '../../../engine/recompute.js';
+import { normText, quoteInText, statementsInText, type DocTaxStatement, type ModelTax } from '../../../engine/tax.js';
 import { coversExactlyRemainder, VERIFIED_SCOPE_CONFIDENCE } from '../../../engine/verify.js';
 import { expandGroupStatements, type CertificateFacts, type ExtractedLine, type Extraction } from '../../../src/lib/schemas/extraction.js';
 import type { Prepared } from './prepare.js';
@@ -104,6 +105,16 @@ export function deriveLines(prep: Prepared, x: Extraction, lines: RfxLineRow[], 
     const c = l.rfx_line_code?.trim();
     if (c && !l.inherits_last_year) perCode.set(c, (perCode.get(c) ?? 0) + 1);
   }
+  // Document level tax statements: the ones read from the document text itself (whatever the model reported) and the
+  // ones the model reported, kept only when its quote is really in the document. Lines that are a priced line's own
+  // evidence or condition are that line's statement, not the document's.
+  const ownTexts = expanded.flatMap((l) => [l.evidence.quote ?? '', ...l.conditions]).filter(Boolean);
+  const fromText = statementsInText(prep.text, ownTexts);
+  const fromModel: DocTaxStatement[] = x.document.tax_statements
+    .filter((t) => quoteInText(t.quote, prep.text))
+    .map((t) => ({ quote: t.quote as string, basis: t.basis, rate_pct: t.rate_pct, scope: t.scope, is_correction: t.is_correction }));
+  const seenTax = new Set<string>();
+  const docTax: DocTaxStatement[] = [...fromModel, ...fromText].filter((d) => { const k = normText(d.quote); if (seenTax.has(k)) return false; seenTax.add(k); return true; }).slice(0, 24);
   return expanded.map((l): DerivedLine => {
     const rfx = l.rfx_line_code ? byCode.get(l.rfx_line_code.trim()) ?? null : null;
     const size: SizeCheck | null = rfx && !l.inherits_last_year ? sizeCheck([l.vendor_description, l.evidence.quote ?? ''], { code: rfx.code, text: rfxText(rfx) }, peers, quotedCodes) : null;
@@ -114,6 +125,10 @@ export function deriveLines(prep: Prepared, x: Extraction, lines: RfxLineRow[], 
     const sticky: string[] = [];
     if (!rfx) sticky.push(l.rfx_line_code ? 'unknown_rfx_code' : 'unmatched');
     if (prep.source_type === 'xlsx' && hidden.some((h) => l.evidence.locator.includes(`'${h}'`))) sticky.push('from_hidden_sheet');
+
+    // What the model resolved about tax for this line, checked against the document text once, here.
+    const modelTax: ModelTax | null = l.tax_basis && l.tax_source_quote ? { basis: l.tax_basis, rate_pct: l.tax_rate_pct ?? null, quote: l.tax_source_quote, quote_found: quoteInText(l.tax_source_quote, prep.text) } : null;
+    const scopeText = rfx ? [l.vendor_description, l.evidence.quote, [rfx.description, rfx.spec].filter(Boolean).join(' ; '), rfx.section].filter((v) => v != null).join(' ; ') : '';
 
     // One derivation for extraction and for every later recompute (FX, GST, corrections).
     const r = rfx
@@ -128,11 +143,12 @@ export function deriveLines(prep: Prepared, x: Extraction, lines: RfxLineRow[], 
             conditions: l.conditions, annual_qty: rfx.annual_qty, rfx_text: [rfx.description, rfx.spec].filter(Boolean).join(' ; '),
             vendor_notes: x.document.global_notes,
             size_check: size, duplicate_rfx_match: duplicate,
+            scope_text: scopeText, model_tax: modelTax, doc_tax_statements: docTax,
           },
           a,
         )
       : null;
-    const conversion: Record<string, unknown> = r ? conversionJson(r, { read_confidence: l.read_confidence, notes_from_model: l.notes, ...(size ? { size_check: size } : {}), ...(duplicate ? { duplicate_rfx_match: duplicate } : {}) }) : {};
+    const conversion: Record<string, unknown> = r ? conversionJson(r, { read_confidence: l.read_confidence, notes_from_model: l.notes, ...(size ? { size_check: size } : {}), ...(duplicate ? { duplicate_rfx_match: duplicate } : {}), ...(modelTax || docTax.length ? { tax_inputs: { model_tax: modelTax, doc_tax_statements: docTax } } : {}) }) : {};
     const decision = r ? { status: r.status, reasons: r.reasons } : { status: 'needs_review' as const, reasons: ['Not matched to an RFx line.'] };
     return {
       rfx, line: l, result: r, status: decision.status, reasons: decision.reasons, normalized: r?.normalized_inr ?? null, flags: r ? r.flags : sticky,

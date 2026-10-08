@@ -110,11 +110,13 @@ describe('conflicting tax statements (G1 d, e)', () => {
     expect(r.accepted_keys).not.toContain('tax_basis_conflict');
     expect(r.reasons.join(' ')).toMatch(/still conflict/);
   });
-  it('a line with no statement of its own under a conflicting document is capped too', () => {
+  it('a line with no statement of its own under a conflicting document has no derived price (H1)', () => {
     const r = recomputeLine({ ...base, vendor_notes: notes }, a);
     expect(r.flags).toContain('tax_conflict');
-    expect(r.status).toBe('assumed');
-    expect(r.normalized_inr).toBe(100);
+    expect(r.flags).toContain('tax_unresolved');
+    expect(r.status).toBe('needs_review');
+    expect(r.normalized_inr).toBeNull();
+    expect(r.reasons.join(' ')).toMatch(/^Not derived: /);
   });
   it('a line that agrees with the blanket statement is not touched by the conflict', () => {
     const r = recomputeLine({ ...base, conditions: ['GST extra'], vendor_notes: notes }, a);

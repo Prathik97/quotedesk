@@ -148,6 +148,7 @@ const ASSUMPTION_LABEL: Record<string, string> = {
   pack_size: 'Pack size taken from the vendor note',
   last_year_inheritance: 'Same as last year, no price stated',
   tax_basis_assumed_excl: 'GST basis not stated',
+  tax_basis_model: 'Tax basis settled from the vendor\'s words, not yet checked by a person',
   photo_read: 'Read from a photo, not yet checked by a person',
   unspecified: 'Assumed, reason not recorded',
 };
@@ -161,6 +162,7 @@ function assumptionStep(key: string, vendor: string, n: number): string {
     case 'pack_size': return `Ask ${vendor} to confirm in writing what one pack holds for its ${lines} quoted per pack.`;
     case 'photo_read': return `Check the photo crop for ${vendor}'s ${lines} and accept each price, or ask the vendor to confirm in writing.`;
     case 'tax_basis_assumed_excl': return `Ask ${vendor} to confirm that its prices exclude GST (${lines}).`;
+    case 'tax_basis_model': return `Check the tax statement quoted for ${vendor}'s ${lines} against the source, or ask ${vendor} to confirm whether GST is included.`;
     case 'gst_pct': return `Ask ${vendor} to confirm the GST rate behind its ${lines} quoted including GST.`;
     default: return `Confirm with ${vendor} in writing: ${(ASSUMPTION_LABEL[key] ?? key.replaceAll('_', ' ')).toLowerCase()} (${lines}).`;
   }

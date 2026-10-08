@@ -5,7 +5,7 @@
 // never disagree.
 import { normalizePrice, specLengthMm } from './convert';
 import type { SizeCheck } from './dimensions';
-import { conflictText, resolveTax, type TaxResolution } from './tax';
+import { conflictText, readingsText, resolveTax, type DocTaxStatement, type ModelTax, type TaxResolution } from './tax';
 import { gradeMismatch, readTerms } from './terms';
 import type { Assumptions, BaseUom, ConversionStep, LineStatus, ReadConfidence, SourceType, UnitDefinition } from './types';
 import { assignStatus, lineFlags } from './verify';
@@ -53,6 +53,11 @@ export type StoredLine = {
   size_check?: SizeCheck | null;
   /** Set at extraction when another line of the same document is matched to the same RFx line. The text names that line. */
   duplicate_rfx_match?: string | null;
+  /** The vendor's description, evidence quote, the RFx description and the section, joined. Which document tax statements could apply to the line is judged on it. */
+  scope_text?: string;
+  /** The model's tax resolution for this line and the document statements it reported, verified once at extraction. Absent on lines read before they existed. */
+  model_tax?: ModelTax | null;
+  doc_tax_statements?: DocTaxStatement[];
 };
 
 export type LineResult = {
@@ -76,7 +81,7 @@ export type LineResult = {
 };
 
 /** Statements about how to read a document. A buyer who has seen the source can accept these. */
-export const INTERPRETATION_KEYS = ['pack_size', 'tax_basis_assumed_excl', 'last_year_inheritance', 'unit_length'];
+export const INTERPRETATION_KEYS = ['pack_size', 'tax_basis_assumed_excl', 'last_year_inheritance', 'unit_length', 'tax_basis_model'];
 /** Numbers the vendor never gave. A buyer cannot verify these by looking at the source. */
 export const EXTERNAL_KEYS = ['usd_inr', 'gst_pct'];
 
@@ -92,6 +97,17 @@ function unitProblemText(price: number | null, uomText: string | null, base: Bas
   return `${head}The unit could not be mapped to ${base}.${extra}`;
 }
 
+/** The plain message for a line whose tax basis cannot be settled. The two readings are text only, never a value. */
+function notDerivedText(tax: TaxResolution, price: number | null, currency: string | null): string {
+  const g = tax.guard;
+  if (!g) return '';
+  const said = g.statements.map((t) => `"${t}"`).join(' and ');
+  const why = g.why === 'conflict' ? `The vendor's tax statements conflict: ${said}.` : `The vendor made a tax statement that may apply to this line: ${said}.`;
+  const shown = price != null ? ` The price is shown as the vendor wrote it (${price} ${currency ?? 'INR'}).` : '';
+  const both = price != null && g.rate_pct != null && (currency ?? 'INR').toUpperCase() === 'INR' ? ` As text only, not a value: ${readingsText(price, g.rate_pct)}.` : '';
+  return `Not derived: whether GST is included in this price cannot be settled from the document, so no price excluding GST is shown. ${why}${shown}${both} Check the source.`;
+}
+
 export function recomputeLine(l: StoredLine, a: Assumptions): LineResult {
   const o = l.overrides;
   const verified = o.verified === true;
@@ -99,9 +115,14 @@ export function recomputeLine(l: StoredLine, a: Assumptions): LineResult {
   const price = o.price ?? l.price;
   const inherits = l.inherits_last_year && !edited;
 
-  const tax = inherits ? null : resolveTax({ doc_basis: l.tax_basis, conditions: l.conditions ?? [], notes: l.vendor_notes ?? [] });
+  const tax = inherits
+    ? null
+    : resolveTax({ doc_basis: l.tax_basis, conditions: l.conditions ?? [], notes: l.vendor_notes ?? [], scope_text: l.scope_text, model_tax: l.model_tax, doc_statements: l.doc_tax_statements });
+  const notDerived = tax?.guard ? notDerivedText(tax, price, l.currency) : null;
   const n = tax?.contradiction
     ? ({ ok: false, reason: 'tax_unresolved', detail: `This line says both included and extra: "${tax.contradiction.a}" and "${tax.contradiction.b}".` } as const)
+    : notDerived
+    ? ({ ok: false, reason: 'tax_unresolved', detail: notDerived } as const)
     : normalizePrice(
     {
       price,
@@ -139,6 +160,7 @@ export function recomputeLine(l: StoredLine, a: Assumptions): LineResult {
     packSource = n.pack_source ?? null;
     // Unchanged on purpose: a line that only says "GST extra" while the document basis is unknown stays Assumed, as before.
     // Reading a stated "extra" as settled would lift lines to Confirmed that carry other unverified conditions.
+    if (tax?.source === 'model') keys.push('tax_basis_model');
     if (tax && (tax.basis === 'unknown' || (tax.basis === 'excl_gst' && l.tax_basis === 'unknown'))) keys.push('tax_basis_assumed_excl');
   } else {
     unitKnown = !UNIT_PROBLEMS.includes(n.reason);
@@ -148,9 +170,11 @@ export function recomputeLine(l: StoredLine, a: Assumptions): LineResult {
   if (edited) flags.push('buyer_edited');
   const flagText: Record<string, string> = {};
   if (tax?.contradiction) flagText.tax_unresolved = `${error?.detail ?? ''} The price is not converted, because an inclusive price must never be shown as an excluding GST price. Check the source.`.trim();
+  else if (notDerived) flagText.tax_unresolved = notDerived;
   if (tax?.conflict) {
     // The price is still read on this line's own statement and shown without GST; it just cannot be Confirmed.
-    const how = tax.basis === 'incl_gst' ? ` This line says GST is included${tax.rate_pct != null ? ` at ${tax.rate_pct} percent` : ''}, so the price is shown without GST.` : tax.basis === 'excl_gst' ? '' : ' This line has no tax statement of its own, so it is read as excluding GST.';
+    const by = tax.source === 'model' ? ` (the model resolved it from the vendor's words: "${tax.statement}")` : '';
+    const how = tax.basis === 'incl_gst' ? ` This line says GST is included${tax.rate_pct != null ? ` at ${tax.rate_pct} percent` : ''}${by}, so the price is shown without GST.` : tax.basis === 'excl_gst' ? (by ? ` This line says GST is extra${by}.` : '') : notDerived ? ' This line has no tax statement of its own, so no excluding GST price is derived.' : '';
     flags.push('tax_conflict');
     keys.push('tax_basis_conflict');
     flagText.tax_conflict = `${conflictText(tax.conflict)}${how}`;

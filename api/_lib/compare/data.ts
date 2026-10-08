@@ -47,7 +47,7 @@ select jsonb_build_object(
   'usage', ${STORED_RUN_USAGE_SQL},
   'raw', (select coalesce(jsonb_agg(jsonb_build_object('id', q.id, 'per_n', q.price_basis->'per_n', 'tax', q.price_basis->>'tax', 'inherits', q.price_basis->'inherits_last_year',
       'read', q.conversion->>'read_confidence', 'evread', q.evidence->>'read_confidence', 'match', q.match_confidence, 'quote', q.evidence->>'quote', 'locator', q.evidence->>'locator',
-      'doc', q.source_document_id, 'flags', q.flags, 'overrides', q.overrides, 'size_check', q.conversion->'size_check', 'dup', q.conversion->>'duplicate_rfx_match')), '[]'::jsonb) from quote_lines q where q.rfx_line_id is not null),
+      'doc', q.source_document_id, 'flags', q.flags, 'overrides', q.overrides, 'size_check', q.conversion->'size_check', 'dup', q.conversion->>'duplicate_rfx_match', 'tax_inputs', q.conversion->'tax_inputs', 'vdesc', q.vendor_description)), '[]'::jsonb) from quote_lines q where q.rfx_line_id is not null),
   'pack_overrides', (select coalesce(jsonb_agg(jsonb_build_object('vendor_id', q.vendor_id)), '[]'::jsonb) from quote_lines q where q.overrides ? 'pack')
 ) as d`;
 
@@ -101,6 +101,9 @@ export async function loadCompare(pool: pg.Pool): Promise<CompareResponse> {
           rfx_text: [lineById.get(c.rfx_line_id)?.description, lineById.get(c.rfx_line_id)?.spec].filter(Boolean).join(' ; '),
           size_check: rw.size_check ?? null,
           duplicate_rfx_match: rw.dup ?? null,
+          scope_text: [rw.vdesc, rw.quote, [lineById.get(c.rfx_line_id)?.description, lineById.get(c.rfx_line_id)?.spec].filter(Boolean).join(' ; '), lineById.get(c.rfx_line_id)?.section].filter((v) => v != null).join(' ; '),
+          model_tax: rw.tax_inputs?.model_tax ?? null,
+          doc_tax_statements: rw.tax_inputs?.doc_tax_statements ?? [],
           vendor_notes: ((termsByVendor.get(c.vendor_id)?.global_notes ?? []) as Json[]).filter((x) => !x.document_id || x.document_id === rw?.doc).map((x) => String(x.text)),
         }
       : null,
@@ -234,7 +237,7 @@ export async function loadCompare(pool: pg.Pool): Promise<CompareResponse> {
     push('gst_pct', 'Quoted including GST', assumptionText('gst_pct', { usd_inr: d.usd_inr, gst_pct: d.gst_pct }), count('gst_pct'));
     push('last_year_inheritance', 'Same as last year', 'The vendor gave no number, so the last year contract rate is used.', count('last_year_inheritance'));
     push('tax_basis_assumed_excl', 'GST basis not stated', 'Read as excluding GST, as the RFx asked.', count('tax_basis_assumed_excl'));
-    push('tax_basis_conflict', 'Conflicting tax statements', 'The vendor document says GST is extra and included in different places. Prices are shown without GST at the rate the vendor stated, and held at Assumed.', count('tax_basis_conflict'));
+    push('tax_basis_conflict', 'Conflicting tax statements', 'The vendor document says GST is extra and included in different places. Lines the vendor\'s own words settle are converted at the rate the vendor stated; lines they do not settle are shown as Not derived. Held at Assumed at most.', count('tax_basis_conflict'));
     if (count('pack_size') > 0 || buyerPackVendors.has(v.id)) {
       const text = defs.map((x) => `${x.term} = ${x.means_quantity} ${x.means_unit ?? ''}`.trim()).join('; ');
       push('pack_size', 'Pack size from the vendor note', text ? `Vendor note: ${text}.` : 'Pack size from the vendor note.', count('pack_size'));

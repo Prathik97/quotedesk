@@ -451,6 +451,7 @@ const SHORT_ASSUMPTION: Record<string, string> = {
   last_year_inheritance: 'Same as last year, no price stated; last year\'s rate is used',
   tax_basis_assumed_excl: 'GST basis not stated; read as excluding GST',
   gst_pct: 'Quoted including GST; converted at the assumed percent',
+  tax_basis_model: 'Tax basis settled by the model from the vendor\'s words; not yet checked by a person',
 };
 
 async function listOpenIssues(ctx: ToolCtx, input: z.infer<typeof TOOL_SCHEMAS.list_open_issues>): Promise<ToolOutcome> {

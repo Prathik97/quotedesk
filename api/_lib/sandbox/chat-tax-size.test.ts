@@ -73,14 +73,15 @@ describe('tax basis through the sandbox (G1)', () => {
     expect(s.tax).toMatchObject({ basis: 'excl_gst', conflict: false });
     expect(s.assumptions).not.toContain('tax_basis_conflict');
   });
-  it('inclusive with no rate stated anywhere divides by the default and says it is assumed', async () => {
+  it('inclusive with no rate stated on the line divides by the default and says it is assumed; the chat text itself still reveals the conflict although the model left the notes empty', async () => {
     const r = await runWith(extraction([line({ conditions: ['rate is inclusive of GST'] })], { global_notes: [] }));
     const l = r.lines[0]!;
     expect(l.normalized_inr).toBeCloseTo(105 / 1.18, 10);
     expect(l.tax).toMatchObject({ rate_source: 'assumed', rate_pct: 18 });
     expect(l.assumptions).toContain('gst_pct');
-    expect(r.terms?.tax_basis).toBe('unknown');
-    expect(r.review.some((x) => x.kind === 'tax_conflict')).toBe(false);
+    expect(r.terms?.tax_basis).toBe('conflicting');
+    expect(r.review.some((x) => x.kind === 'tax_conflict')).toBe(true);
+    expect(l.status).not.toBe('confirmed');
   });
   it('a model that returns a structured document basis of excl still has a line that says included flagged, not silently converted as excl', async () => {
     const r = await runWith(extraction([line({})], { tax_basis: 'excl_gst', global_notes: [] }));
