@@ -94,7 +94,7 @@ function Result({ r }: { r: SandboxResult }) {
           <div>
             <h2 className="text-sm font-semibold break-all">{r.filename}</h2>
             <p className="text-xs text-muted-foreground">
-              Read as {r.kind}{r.kind_confidence ? ` (${Math.round(r.kind_confidence * 100)} percent sure)` : ''}, format {r.source_type}. {r.vendor_name_as_written ? `Vendor as written: ${r.vendor_name_as_written}.` : ''}
+              Read as {r.kind}{r.kind_confidence ? ` (${Math.round(r.kind_confidence * 100)} percent sure)` : ''}, format {r.format_label ?? r.source_type}. {r.vendor_name_as_written ? `Vendor as written: ${r.vendor_name_as_written}.` : ''}
             </p>
           </div>
           <Chip tone="accent">Not added to the comparison</Chip>
@@ -105,9 +105,9 @@ function Result({ r }: { r: SandboxResult }) {
           <Item k="RFx lines covered" v={`${r.rfx_lines_covered} of ${r.rfx_lines_total}`} />
           {Object.entries(r.status_counts).map(([k, n]) => <Item key={k} k={STATUS[k]?.label ?? k} v={`${n}`} />)}
           {r.terms ? <Item k="Freight" v={`${r.terms.freight_terms}${r.terms.freight_note ? `, ${r.terms.freight_note}` : ''}`} /> : null}
-          {r.terms ? <Item k="Tax basis" v={r.terms.tax_basis === 'excl_gst' ? 'Excluding GST' : r.terms.tax_basis === 'incl_gst' ? 'Including GST' : 'Not stated'} /> : null}
+          {r.terms ? <Item k="Tax basis" v={r.terms.tax_basis === 'excl_gst' ? 'Excluding GST' : r.terms.tax_basis === 'incl_gst' ? 'Including GST' : r.terms.tax_basis === 'conflicting' ? 'Conflicting' : 'Not stated'} /> : null}
           {r.terms?.payment_terms ? <Item k="Payment terms" v={r.terms.payment_terms} /> : null}
-          {r.terms?.validity ? <Item k="Validity" v={r.terms.validity} /> : null}
+          {r.terms?.validity ? <Item k="Validity" v={`${r.terms.validity}${r.terms.validity_days ? ` (read as ${r.terms.validity_days} days)` : ''}`} /> : null}
           {r.terms?.stated_total_inr != null ? <Item k="Stated total" v={`Rs ${formatIndian(r.terms.stated_total_inr, 2)}`} /> : null}
           <Item k="This read cost" v={`Rs ${r.usage.cost_inr.toFixed(2)} (${r.usage.model_calls} model ${r.usage.model_calls === 1 ? 'call' : 'calls'}${r.usage.repaired ? ', one repair' : ''})`} />
         </dl>
@@ -129,7 +129,7 @@ function Result({ r }: { r: SandboxResult }) {
                 <tr className="text-left text-xs text-muted-foreground">
                   <th scope="col" className="px-4 py-1.5 font-medium">RFx line</th>
                   <th scope="col" className="px-2 py-1.5 font-medium">As the vendor wrote it</th>
-                  <th scope="col" className="px-2 py-1.5 text-right font-medium">INR per base unit</th>
+                  <th scope="col" className="px-2 py-1.5 text-right font-medium">INR per base unit (excl GST)</th>
                   <th scope="col" className="px-2 py-1.5 font-medium">Status</th>
                   <th scope="col" className="px-2 py-1.5 font-medium">Evidence</th>
                 </tr>
@@ -149,6 +149,9 @@ function Result({ r }: { r: SandboxResult }) {
                     <td className="px-2 py-2 text-right text-xs tabular">
                       {l.normalized_inr != null ? <div className="font-medium">{formatIndian(l.normalized_inr, 2)} per {l.base_unit}</div> : <div className="text-muted-foreground">Not derived</div>}
                       {l.ly_rate != null ? <div className="text-muted-foreground">Last year {formatIndian(l.ly_rate, 2)}</div> : null}
+                      {l.tax?.basis === 'incl_gst' ? <div className="text-status-assumed">Quoted incl GST, {l.tax.rate_source === 'stated' ? `vendor's stated ${l.tax.rate_pct} percent` : `assumed ${l.tax.rate_pct} percent`}</div> : null}
+                      {l.tax?.basis === 'excl_gst' ? <div className="text-muted-foreground">Quoted excl GST</div> : null}
+                      {(l.steps ?? []).map((st, k) => <div key={`s${k}`} className="text-muted-foreground">{st.reason} ({st.op === 'divide' ? '÷' : '×'} {Math.round(st.factor * 1e6) / 1e6})</div>)}
                     </td>
                     <td className="px-2 py-2 text-xs">
                       <Chip tone={STATUS[l.status]?.tone ?? 'neutral'}>{STATUS[l.status]?.label ?? l.status}</Chip>

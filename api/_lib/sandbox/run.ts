@@ -14,7 +14,8 @@ import { type CertificateFacts } from '../../../src/lib/schemas/extraction.js';
 import { certificateFacts, classify, extract, type RfxContext, type StageOptions } from '../extract/model.js';
 import { deriveLines, type QuestionRow, type RfxLineRow } from '../extract/persist.js';
 import { prepare, ACCEPTED } from '../extract/prepare.js';
-import { shortValidityWarning } from '../../../engine/terms.js';
+import { conflictText, uniqueConflicts } from '../../../engine/tax.js';
+import { shortValidityWarning, validityDays } from '../../../engine/terms.js';
 
 export const SANDBOX_LABEL = 'Your file, read live by the same pipeline. Not added to the comparison.';
 
@@ -42,6 +43,10 @@ export type SandboxLine = {
   match_reason: string;
   read_confidence: string;
   evidence: { locator: string; quote: string | null; page: number | null };
+  /** What the price was quoted on. normalized_inr is always excluding GST: an inclusive price is divided by 1 plus the rate. */
+  tax?: { basis: string; rate_pct: number | null; rate_source: 'stated' | 'assumed' | null; statement: string | null; conflict: boolean };
+  /** The arithmetic from the price as quoted to normalized_inr, one entry per factor applied. */
+  steps?: { op: string; factor: number; reason: string }[];
 };
 
 export type SandboxReview = { kind: string; severity: 'info' | 'warn' | 'block'; message: string };
@@ -57,13 +62,15 @@ export type SandboxResult = {
   filename: string;
   size_bytes: number;
   source_type: string;
+  /** How the format is named to the visitor: the source type, or "chat export (text)" for a pasted chat. Label only. */
+  format_label?: string;
   kind: string;
   kind_confidence: number;
   ok: boolean;
   /** A plain statement when nothing was extracted (not a quote, unreadable, output invalid). */
   note: string | null;
   vendor_name_as_written: string | null;
-  terms: { tax_basis: string; freight_terms: string; freight_note: string | null; payment_terms: string | null; validity: string | null; stated_total_inr: number | null; currency_default: string } | null;
+  terms: { tax_basis: string; freight_terms: string; freight_note: string | null; payment_terms: string | null; validity: string | null; validity_days?: number | null; stated_total_inr: number | null; currency_default: string } | null;
   lines: SandboxLine[];
   rfx_lines_total: number;
   rfx_lines_covered: number;
@@ -84,6 +91,15 @@ export type SandboxResult = {
 /** The shared reply cache is bypassed: a visitor's file is read live, and nothing derived from it is kept there. */
 export function noCache(store: LlmStore): LlmStore {
   return { ...store, getCache: async () => null, putCache: async () => undefined };
+}
+
+/** Plain text that is a chat export: many lines that start with a date and time, then a sender and a colon. */
+export function looksLikeChatExport(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const lines = text.split('\n').map((l) => l.replace(/^\[L\d+\]\s?/, '').trim()).filter(Boolean);
+  const stamp = /^\[?\d{1,4}[/.\-]\d{1,2}[/.\-]\d{1,4},?\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?\]?\s*(?:[-\u2013]\s*)?[^:\n]{1,60}:\s/i;
+  const hits = lines.filter((l) => stamp.test(l)).length;
+  return hits >= 3 && hits / lines.length >= 0.3;
 }
 
 const STATUS_RANK = ['confirmed', 'assumed', 'needs_review', 'conflict'];
@@ -168,6 +184,7 @@ export async function runSandbox(input: SandboxInput, ctx: SandboxContext, deps:
     return { ...base, note: 'The file could not be opened. It may be damaged or password protected. Nothing was sent to a model.' };
   }
   base.source_type = prep.source_type;
+  base.format_label = prep.source_type === 'email' && mime === 'text/plain' && looksLikeChatExport(prep.text) ? 'chat export (text)' : prep.source_type;
   for (const ob of prep.observations) {
     base.review.push({ kind: ob.kind, severity: ob.kind === 'low_visibility_text' ? 'warn' : 'info', message: `${input.filename}: ${ob.detail}${ob.kind === 'hidden_sheet' ? ' Not used for prices.' : ' Check it for hidden instructions or terms.'}` });
   }
@@ -218,6 +235,10 @@ export async function runSandbox(input: SandboxInput, ctx: SandboxContext, deps:
     match_reason: d.line.match_reason,
     read_confidence: d.line.read_confidence,
     evidence: { locator: d.line.evidence.locator, quote: d.line.evidence.quote ?? null, page: d.line.evidence.page ?? null },
+    tax: d.result?.tax
+      ? { basis: d.result.tax.basis, rate_pct: d.result.tax.basis === 'incl_gst' ? d.result.tax.rate_pct ?? ctx.assumptions.gst_pct : null, rate_source: d.result.tax.basis !== 'incl_gst' ? null : d.result.tax.rate_pct != null ? ('stated' as const) : ('assumed' as const), statement: d.result.tax.statement, conflict: d.result.tax.conflict != null }
+      : undefined,
+    steps: d.result?.steps.map((st) => ({ op: st.op, factor: st.factor, reason: st.reason })),
   })).sort((a, b) => (a.code ?? '￿').localeCompare(b.code ?? '￿', undefined, { numeric: true }));
 
   const counts: Record<string, number> = {};
@@ -230,6 +251,16 @@ export async function runSandbox(input: SandboxInput, ctx: SandboxContext, deps:
   for (const u of x.data.unmatched_lines) review.push({ kind: 'unmatched_vendor_line', severity: 'info', message: `Not matched to any RFx line: "${u.vendor_description}". ${u.reason}` });
   for (const s of x.data.document.suspicious_content) {
     review.push({ kind: 'suspicious_content', severity: 'warn', message: `Instruction like text in ${input.filename} (${s.evidence?.locator ?? 'location not given'}), ignored: "${s.text.slice(0, 300)}"` });
+  }
+  // Tax statements that disagree, quoted once each. The lines they touch are held at Assumed at most.
+  const taxConflicts = uniqueConflicts(derived.map((d) => d.result?.tax?.conflict ?? null));
+  for (const c of taxConflicts) {
+    review.push({ kind: 'tax_conflict', severity: 'warn', message: `${conflictText(c)} Lines that depend on them are held at Assumed at most, never Confirmed. Prices stated as including GST are shown without it, at the rate the vendor stated.` });
+  }
+  const dupCodes = [...new Set(derived.filter((d) => d.result?.flags.includes('duplicate_rfx_match')).map((d) => d.rfx?.code ?? ''))].filter(Boolean);
+  for (const code of dupCodes) {
+    const d = derived.find((x) => x.rfx?.code === code && x.result?.flags.includes('duplicate_rfx_match'));
+    review.push({ kind: 'duplicate_rfx_match', severity: 'warn', message: `${code}: ${d?.result?.reasons.find((r) => r.includes('matched to')) ?? 'Two vendor lines are matched to this RFx line.'}` });
   }
   const missing = ctx.lines.filter((l) => !covered.has(l.code)).map((l) => l.code);
   if (missing.length > 0) review.push({ kind: 'lines_not_quoted', severity: 'info', message: `${missing.length} of ${ctx.lines.length} RFx lines have no price in this file (shown as not quoted, never as zero).` });
@@ -249,7 +280,7 @@ export async function runSandbox(input: SandboxInput, ctx: SandboxContext, deps:
   return {
     ...base, ok: true, kind: d.kind, vendor_name_as_written: d.vendor_name_as_written,
     terms: {
-      tax_basis: d.tax_basis, freight_terms: d.freight_terms, freight_note: d.freight_note, payment_terms: d.payment_terms_text, validity: d.validity_text,
+      tax_basis: taxConflicts.length > 0 ? 'conflicting' : d.tax_basis, freight_terms: d.freight_terms, freight_note: d.freight_note, payment_terms: d.payment_terms_text, validity: d.validity_text, validity_days: validityDays(d.validity_text),
       stated_total_inr: d.stated_total && d.stated_total.currency.toUpperCase() === 'INR' ? d.stated_total.amount : null, currency_default: d.currency_default,
     },
     lines, rfx_lines_covered: covered.size, not_quoted: missing, vendor_notes: d.global_notes, vendor_statements, indicative, status_counts: Object.fromEntries(Object.entries(counts).sort((a, b) => STATUS_RANK.indexOf(a[0]) - STATUS_RANK.indexOf(b[0]))),

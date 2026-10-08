@@ -2,6 +2,7 @@
 // from this document is deleted first, inside one transaction.
 import type pg from 'pg';
 import type { Assumptions, BaseUom, UnitDefinition } from '../../../engine/types.js';
+import { sizeCheck, type SizeCheck } from '../../../engine/dimensions.js';
 import { READ_SCORE, recomputeLine, type LineResult } from '../../../engine/recompute.js';
 import { coversExactlyRemainder, VERIFIED_SCOPE_CONFIDENCE } from '../../../engine/verify.js';
 import { expandGroupStatements, type CertificateFacts, type ExtractedLine, type Extraction } from '../../../src/lib/schemas/extraction.js';
@@ -92,8 +93,24 @@ export function deriveLines(prep: Prepared, x: Extraction, lines: RfxLineRow[], 
       g.match_confidence = VERIFIED_SCOPE_CONFIDENCE;
     }
   }
-  return expandGroupStatements(x).map((l): DerivedLine => {
+  const expanded = expandGroupStatements(x);
+  // Checks that need the whole document and every RFx line: the size of a box against the line it was matched to,
+  // and two vendor lines matched to the same RFx line. Both only flag; nothing is re-mapped.
+  const rfxText = (r: RfxLineRow) => [r.description, r.spec].filter(Boolean).join(' ; ');
+  const peers = lines.map((r) => ({ code: r.code, text: rfxText(r) }));
+  const quotedCodes = new Set(expanded.flatMap((l) => (l.rfx_line_code ? [l.rfx_line_code.trim()] : [])));
+  const perCode = new Map<string, number>();
+  for (const l of expanded) {
+    const c = l.rfx_line_code?.trim();
+    if (c && !l.inherits_last_year) perCode.set(c, (perCode.get(c) ?? 0) + 1);
+  }
+  return expanded.map((l): DerivedLine => {
     const rfx = l.rfx_line_code ? byCode.get(l.rfx_line_code.trim()) ?? null : null;
+    const size: SizeCheck | null = rfx && !l.inherits_last_year ? sizeCheck([l.vendor_description, l.evidence.quote ?? ''], { code: rfx.code, text: rfxText(rfx) }, peers, quotedCodes) : null;
+    const twins = rfx && !l.inherits_last_year ? expanded.filter((o) => o !== l && !o.inherits_last_year && o.rfx_line_code?.trim() === rfx.code) : [];
+    const duplicate = rfx && (perCode.get(rfx.code) ?? 0) > 1
+      ? `${(perCode.get(rfx.code) ?? 0)} vendor lines in this document are matched to ${rfx.code}: "${l.vendor_description}"${twins.length ? ` and ${twins.map((t) => `"${t.vendor_description}"`).join(', ')}` : ''}. Only one can be the price for this line.`
+      : null;
     const sticky: string[] = [];
     if (!rfx) sticky.push(l.rfx_line_code ? 'unknown_rfx_code' : 'unmatched');
     if (prep.source_type === 'xlsx' && hidden.some((h) => l.evidence.locator.includes(`'${h}'`))) sticky.push('from_hidden_sheet');
@@ -110,11 +127,12 @@ export function deriveLines(prep: Prepared, x: Extraction, lines: RfxLineRow[], 
             sticky_flags: sticky, overrides: {},
             conditions: l.conditions, annual_qty: rfx.annual_qty, rfx_text: [rfx.description, rfx.spec].filter(Boolean).join(' ; '),
             vendor_notes: x.document.global_notes,
+            size_check: size, duplicate_rfx_match: duplicate,
           },
           a,
         )
       : null;
-    const conversion: Record<string, unknown> = r ? conversionJson(r, { read_confidence: l.read_confidence, notes_from_model: l.notes }) : {};
+    const conversion: Record<string, unknown> = r ? conversionJson(r, { read_confidence: l.read_confidence, notes_from_model: l.notes, ...(size ? { size_check: size } : {}), ...(duplicate ? { duplicate_rfx_match: duplicate } : {}) }) : {};
     const decision = r ? { status: r.status, reasons: r.reasons } : { status: 'needs_review' as const, reasons: ['Not matched to an RFx line.'] };
     return {
       rfx, line: l, result: r, status: decision.status, reasons: decision.reasons, normalized: r?.normalized_inr ?? null, flags: r ? r.flags : sticky,

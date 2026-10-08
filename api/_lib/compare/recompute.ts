@@ -2,6 +2,7 @@
 // the current assumptions and the buyer's overrides. No model call is made here.
 // Used by FX and GST edits, every review action, and POST /api/normalize.
 import type pg from 'pg';
+import type { SizeCheck } from '../../../engine/dimensions.js';
 import { recomputeLine, STICKY_FLAGS, type LineOverrides, type StoredLine } from '../../../engine/recompute.js';
 import type { Assumptions, BaseUom, ReadConfidence, SourceType, UnitDefinition } from '../../../engine/types.js';
 import { conversionJson } from '../extract/persist.js';
@@ -16,7 +17,7 @@ type Row = {
   uom_text: string | null;
   currency: string | null;
   price_basis: { tax?: StoredLine['tax_basis']; per_n?: number; inherits_last_year?: boolean };
-  conversion: { read_confidence?: ReadConfidence; notes_from_model?: string } | null;
+  conversion: { read_confidence?: ReadConfidence; notes_from_model?: string; size_check?: SizeCheck; duplicate_rfx_match?: string } | null;
   flags: string[];
   source_type: SourceType | null;
   evidence: { quote?: string | null; locator?: string | null; read_confidence?: ReadConfidence } | null;
@@ -81,6 +82,8 @@ function toStored(row: Row): StoredLine {
     annual_qty: row.annual_qty,
     rfx_text: row.rfx_text,
     vendor_notes: (row.global_notes ?? []).filter((n) => !n.document_id || n.document_id === row.source_document_id).map((n) => n.text),
+    size_check: row.conversion?.size_check ?? null,
+    duplicate_rfx_match: row.conversion?.duplicate_rfx_match ?? null,
   };
 }
 
@@ -149,7 +152,7 @@ async function syncLineReviewItems(c: pg.PoolClient, vendorIds: string[]): Promi
  * checks that depend on price. Everything runs in one transaction. Returns what
  * changed so the UI can show the effect.
  */
-export async function recompute(pool: pg.Pool, opts: { vendorIds?: string[] } = {}): Promise<RecomputeSummary> {
+export async function recompute(pool: pg.Pool, opts: { vendorIds?: string[]; /** Derive and report what would move, write nothing. */ dryRun?: boolean } = {}): Promise<RecomputeSummary> {
   const t0 = Date.now();
   const [a, rows] = await Promise.all([loadAssumptions(pool), loadRows(pool, opts.vendorIds)]);
 
@@ -169,10 +172,17 @@ export async function recompute(pool: pg.Pool, opts: { vendorIds?: string[] } = 
       conf: r.confidence,
       f: r.flags,
       k: r.assumption_keys,
-      c: conversionJson(r, { read_confidence: row.conversion?.read_confidence ?? row.evidence?.read_confidence ?? 'medium', notes_from_model: row.conversion?.notes_from_model ?? '' }),
+      c: conversionJson(r, {
+        read_confidence: row.conversion?.read_confidence ?? row.evidence?.read_confidence ?? 'medium',
+        notes_from_model: row.conversion?.notes_from_model ?? '',
+        ...(row.conversion?.size_check ? { size_check: row.conversion.size_check } : {}),
+        ...(row.conversion?.duplicate_rfx_match ? { duplicate_rfx_match: row.conversion.duplicate_rfx_match } : {}),
+      }),
       p: r.pack_size,
     };
   });
+
+  if (opts.dryRun) return { ms: Date.now() - t0, lines: rows.length, changed, assumptions: a };
 
   const vendors = [...new Set(rows.map((r) => r.vendor_id))];
   const c = await pool.connect();
