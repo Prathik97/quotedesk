@@ -103,4 +103,8 @@ Real email sending and receiving, authentication and multi tenancy, vendor porta
 - **Stated "GST extra" lifting a line to Confirmed.** A line that says GST extra under an unknown document basis stays Assumed, as before. Changing it needs a decision on lines that carry other unverified conditions.
 - **A model field for the tax basis and rate per line.** The schema has none and the prompt was not changed, because the model had captured the text. Only worth adding if the regular expressions miss real phrasing.
 - **Held out evaluation.** Still none. The WhatsApp file is used up (D109).
+- **A way for the buyer to settle a Not derived tax line in the app.** Deliberately not built: an edited value or a buyer check does not clear it (same as a line that contradicts itself). Needs a decision on who may state the basis.
+- **Running the fixed tax guard live.** The live budget was spent on the run that exposed the gap (D120). The fix was verified by replay of that reply only.
+- **Moving the stored pipeline to `extract.v4`.** It would orphan the cached replies of the stored run and change what a re-extraction costs. Try your file only for now.
+- **A line level scope for statements in tables.** Statements are matched to a line by product words. A column of "GST extra" next to each row of a spreadsheet is read as the line's own text only when the extraction used it as evidence or a condition.
 
