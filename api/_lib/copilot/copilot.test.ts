@@ -178,9 +178,9 @@ describe('house style', () => {
   });
 
   it('removes dashes from the reply', async () => {
-    const { d } = deps(fakeClient([say('Payment 45 — days is a default – change it if you like.')]));
+    const { d } = deps(fakeClient([say('Payment 45 \u2014 days is a default \u2013 change it if you like.')]));
     const { out } = await turn(d);
-    expect(out.text).not.toMatch(/[–—]/);
+    expect(out.text).not.toMatch(/[\u2013\u2014]/);
   });
 });
 

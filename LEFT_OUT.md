@@ -71,3 +71,20 @@ Real email sending and receiving, authentication and multi tenancy, vendor porta
 - **A visual regression test of the memo.** The layout was checked by eye on two scenarios. Tests read the text out of the PDF and check page count; they do not compare pixels.
 - **Streaming the pack.** The route returns when the pack is done (a few seconds, up to about 15 with the model call). There is no progress beyond a status line.
 - **Anything proven on real Vercel.** That `pdf-lib` is traced into the function and the 60 second duration is enough are checked only locally (plain Node 22 with the built function) until the deploy.
+
+## Cut or deferred in Phase 6 (2026-10-08)
+- **Real uploads of the owner's files through Try your file.** None were provided, so Part C has not run against the real model. Everything else about it is tested (D98).
+- **Part C reads one file and decides nothing about a vendor.** No stated total reconciliation (`total_mismatch`), no knockout verdict, no certificate against letterhead check and no photo crop: those need the whole reply set or a second step. It lists lines, units, statuses, evidence, flags, review items, the questionnaire answers read and a certificate's facts.
+- **Larger uploads for Try your file.** 4 MB, through the function. A signed Storage URL (which would allow the 10 MB the brief names) was not simple enough here, and the validator's 10 MB limit still stands for any future upload into the real inbox.
+- **Upload into the real inbox, and duplicate detection by sha256 (FR-3.3, FR-3.4).** Try your file is the only upload and never touches the inbox, by design. The replay and the saved replies are read only.
+- **Replies to a visitor's own RFx.** The stored replies answer the saved FY27 RFx only; the page says so. A draft that is issued gets five simulated emails and a pack and nothing comes back.
+- **Draft management.** One active draft per browser in the UI. Up to five are kept, but there is no list, no rename, no duplicate and no version history or undo for the co-pilot's changes. An issued RFx cannot be edited or recalled.
+- **Per vendor emails and real attachments.** One covering email per issue with the vendor name filled in. The PDF pack is rendered on download rather than attached as a stored file. No cc, no reply tracking, no resend.
+- **The co-pilot cannot issue, and cannot see or change the questionnaire rules of the saved RFx.** By design. It also cannot change the buyer organisation (fixed to the demo buyer) or the vendor list (the five seeded vendors).
+- **A code check for "one clarifying question".** Prompt rule only (D87).
+- **Streaming resume** for the co-pilot, as for the analyst. A dropped connection keeps what the tools already did and asks the buyer to continue.
+- **DOCX pack.** PDF only, as the cut order allowed. The timeline and the pack were built, so nothing from the cut order was dropped except Part C's real uploads.
+- **Hiding the comparison until the replay is run.** The replay gates the Inbox only (D92).
+- **Per visitor Reset.** Reset demo clears every visitor's drafts and sandbox rows (D99).
+- **Anything proven on real Vercel.** Co-pilot streaming, the octet-stream upload body and the 60 second limit for a large file (D99).
+- **A held out test of the co-pilot.** Four live turns and a scripted test suite, not an evaluation of draft quality. Quantities and specs it proposes are defaults it labels as such; there is no check that they are sensible for a real plant.

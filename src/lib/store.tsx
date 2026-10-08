@@ -10,10 +10,10 @@ import { SESSION_KEY } from './analyst';
 import type { ActionResponse, AssumptionUpdateResponse, CompareResponse, ReviewAction, UsageSummary } from './api-types';
 import { deriveAll, diffCells, type CellChange, type Patches } from './derive';
 
-export type Page = 'rfx' | 'outbox' | 'inbox' | 'comparison' | 'analyst' | 'decision' | 'eval';
+export type Page = 'rfx' | 'outbox' | 'inbox' | 'tryfile' | 'comparison' | 'analyst' | 'decision' | 'eval';
 
 /** Each page has a real address, so a refresh or a shared link opens the same page (vercel.json rewrites them to index.html). */
-export const PAGE_PATH: Record<Page, string> = { rfx: '/rfx', outbox: '/outbox', inbox: '/inbox', comparison: '/comparison', analyst: '/analyst', decision: '/decision', eval: '/eval' };
+export const PAGE_PATH: Record<Page, string> = { rfx: '/rfx', outbox: '/outbox', inbox: '/inbox', tryfile: '/try-your-file', comparison: '/comparison', analyst: '/analyst', decision: '/decision', eval: '/eval' };
 
 export function pageFromPath(pathname: string): Page {
   const clean = pathname.replace(/\/+$/, '') || '/';

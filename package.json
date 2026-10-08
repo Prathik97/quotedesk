@@ -28,7 +28,8 @@
     "decision:memo": "tsx scripts/decision-memo.ts",
     "verify:decision": "tsx scripts/verify/decision.ts",
     "verify:seeded": "tsx scripts/verify/seeded-hash.ts",
-    "verify:spend": "tsx scripts/verify/spend.ts"
+    "verify:spend": "tsx scripts/verify/spend.ts",
+    "verify:sandbox": "tsx scripts/verify/sandbox-parity.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

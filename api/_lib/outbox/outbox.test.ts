@@ -125,7 +125,7 @@ describe('template and checks', () => {
     expect(t.body).toMatch(/45 days/);
     expect(t.body).toMatch(/90 days/);
     expect(t.body).toMatch(/3 line items across Cartons, Tapes and films/);
-    expect(t.body + t.subject).not.toMatch(/[–—]/);
+    expect(t.body + t.subject).not.toMatch(/[\u2013\u2014]/);
     expect(checkEmail(t, JSON.stringify(emailSummary(rfx(), ORG))).reasons).toEqual([]);
   });
 
@@ -158,6 +158,6 @@ describe('the RFx pack PDF', () => {
     for (const s of ['CAR-01', 'TAP-01', 'TAP-02', '5 ply carton 450x300x250', 'Valid ISO 9001 certificate?', '45 days', '90 days', 'Bengaluru plant', 'Prices excluding GST', 'Day 14 after issue', 'boxes (100 per box)', 'Must be yes']) {
       expect(blocks).toContain(s);
     }
-    expect(blocks).not.toMatch(/[–—]/);
+    expect(blocks).not.toMatch(/[\u2013\u2014]/);
   });
 });

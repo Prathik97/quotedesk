@@ -4,7 +4,7 @@ import type pg from 'pg';
 import type { Assumptions, BaseUom, UnitDefinition } from '../../../engine/types.js';
 import { READ_SCORE, recomputeLine, type LineResult } from '../../../engine/recompute.js';
 import { coversExactlyRemainder, VERIFIED_SCOPE_CONFIDENCE } from '../../../engine/verify.js';
-import { expandGroupStatements, type CertificateFacts, type Extraction } from '../../../src/lib/schemas/extraction.js';
+import { expandGroupStatements, type CertificateFacts, type ExtractedLine, type Extraction } from '../../../src/lib/schemas/extraction.js';
 import type { Prepared } from './prepare.js';
 
 export type RfxLineRow = { id: string; code: string; section: string; description: string; uom: BaseUom; annual_qty: number; last_year_rate_inr: number | null };
@@ -55,22 +55,32 @@ export async function persistObservations(c: pg.PoolClient, doc: DocRow, prep: P
   }
 }
 
-export async function persistExtraction(
-  c: pg.PoolClient,
-  doc: DocRow,
-  prep: Prepared,
-  x: Extraction,
-  lines: RfxLineRow[],
-  questions: QuestionRow[],
-  a: Assumptions,
-): Promise<{ lines: number; statuses: Record<string, number> }> {
+/** One extracted line after code has matched it to the RFx and derived price, flags and status. Pure. */
+export type DerivedLine = {
+  rfx: RfxLineRow | null;
+  line: ExtractedLine;
+  result: LineResult | null;
+  status: LineResult['status'];
+  reasons: string[];
+  normalized: number | null;
+  flags: string[];
+  assumption_keys: string[];
+  conversion: Record<string, unknown>;
+  confidence: number;
+};
+
+/**
+ * The deterministic half of ingesting an extraction: verify the scope of blanket inheritance, expand group
+ * statements, match each line to the RFx and run the one derivation (recomputeLine). It touches no database,
+ * so the stored pipeline and the Try your file sandbox derive identical results from identical input.
+ * It adjusts group statements of `x` in place when code verifies their scope.
+ */
+export function deriveLines(prep: Prepared, x: Extraction, lines: RfxLineRow[], a: Assumptions): DerivedLine[] {
   const byCode = new Map(lines.map((l) => [l.code, l]));
   const hidden = hiddenSheets(prep);
   const unitDefs: UnitDefinition[] = x.document.unit_definitions.map((u) => ({
     term: u.term, means_quantity: u.means_quantity, means_unit: u.means_unit, quote: u.evidence?.quote ?? null,
   }));
-  const statuses: Record<string, number> = {};
-
   // Code checks the scope of "everything else" style inheritance before trusting it.
   const explicit = new Set([
     ...x.lines.map((l) => l.rfx_line_code ?? ''),
@@ -82,8 +92,7 @@ export async function persistExtraction(
       g.match_confidence = VERIFIED_SCOPE_CONFIDENCE;
     }
   }
-  const allLines = expandGroupStatements(x);
-  for (const l of allLines) {
+  return expandGroupStatements(x).map((l): DerivedLine => {
     const rfx = l.rfx_line_code ? byCode.get(l.rfx_line_code.trim()) ?? null : null;
     const sticky: string[] = [];
     if (!rfx) sticky.push(l.rfx_line_code ? 'unknown_rfx_code' : 'unmatched');
@@ -103,12 +112,29 @@ export async function persistExtraction(
           a,
         )
       : null;
-    const normalized = r?.normalized_inr ?? null;
-    const flags = r ? r.flags : sticky;
-    const assumption_keys = r?.assumption_keys ?? [];
     const conversion: Record<string, unknown> = r ? conversionJson(r, { read_confidence: l.read_confidence, notes_from_model: l.notes }) : {};
     const decision = r ? { status: r.status, reasons: r.reasons } : { status: 'needs_review' as const, reasons: ['Not matched to an RFx line.'] };
-    statuses[decision.status] = (statuses[decision.status] ?? 0) + 1;
+    return {
+      rfx, line: l, result: r, status: decision.status, reasons: decision.reasons, normalized: r?.normalized_inr ?? null, flags: r ? r.flags : sticky,
+      assumption_keys: [...new Set(r?.assumption_keys ?? [])], conversion, confidence: Math.min(l.match_confidence, READ_SCORE[l.read_confidence]),
+    };
+  });
+}
+
+export async function persistExtraction(
+  c: pg.PoolClient,
+  doc: DocRow,
+  prep: Prepared,
+  x: Extraction,
+  lines: RfxLineRow[],
+  questions: QuestionRow[],
+  a: Assumptions,
+): Promise<{ lines: number; statuses: Record<string, number> }> {
+  const derived = deriveLines(prep, x, lines, a);
+  const statuses: Record<string, number> = {};
+  for (const d of derived) {
+    const { rfx, line: l, result: r, status, reasons, normalized, flags, assumption_keys, conversion } = d;
+    statuses[status] = (statuses[status] ?? 0) + 1;
 
     const evidence = { ...l.evidence, source_type: prep.source_type, document_id: doc.id };
     const { rows } = await c.query<{ id: string }>(
@@ -120,16 +146,16 @@ export async function persistExtraction(
         doc.vendor_id, rfx?.id ?? null, doc.id, prep.source_type, l.vendor_description, l.price, l.uom_text, l.currency,
         JSON.stringify({ tax: x.document.tax_basis, per_n: l.per_n ?? 1, inherits_last_year: l.inherits_last_year, pack_size: conversion.pack_size ?? null }),
         normalized,
-        JSON.stringify(r ? conversion : { reasons: decision.reasons, base_status: decision.status, read_confidence: l.read_confidence, notes_from_model: l.notes }),
-        JSON.stringify(l.conditions), decision.status,
-        Math.min(l.match_confidence, READ_SCORE[l.read_confidence]),
-        JSON.stringify(evidence), flags, [...new Set(assumption_keys)], l.match_confidence, l.match_reason,
+        JSON.stringify(r ? conversion : { reasons, base_status: status, read_confidence: l.read_confidence, notes_from_model: l.notes }),
+        JSON.stringify(l.conditions), status,
+        d.confidence,
+        JSON.stringify(evidence), flags, assumption_keys, l.match_confidence, l.match_reason,
       ],
     );
-    if (decision.status === 'needs_review') {
+    if (status === 'needs_review') {
       await review(c, {
         vendor_id: doc.vendor_id, document_id: doc.id, quote_line_id: rows[0]?.id, kind: 'line_needs_review', severity: 'warn',
-        message: `${rfx?.code ?? l.vendor_description}: ${decision.reasons.join(' ')}`,
+        message: `${rfx?.code ?? l.vendor_description}: ${reasons.join(' ')}`,
         value_at_stake_inr: rfx ? rfx.annual_qty * (normalized ?? rfx.last_year_rate_inr ?? 0) : null,
       });
     }
@@ -164,7 +190,7 @@ export async function persistExtraction(
   }
 
   await mergeVendorTerms(c, doc, x);
-  return { lines: allLines.length, statuses };
+  return { lines: derived.length, statuses };
 }
 
 type Tagged = { document_id: string };

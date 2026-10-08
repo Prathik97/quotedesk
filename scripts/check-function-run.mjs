@@ -12,16 +12,22 @@ const server = http.createServer(async (req, res) => {
   res.send = (b) => (res.end(typeof b === 'string' || Buffer.isBuffer(b) ? b : JSON.stringify(b)), res);
   const query = {};
   url.searchParams.forEach((v, k) => (query[k] = v));
-  // Vercel parses a JSON body before the function runs; do the same for POST.
+  // Vercel parses a JSON body before the function runs and passes other bodies as a Buffer; do the same for POST.
   let body;
   if (req.method === 'POST') {
     const chunks = [];
     for await (const c of req) chunks.push(c);
-    const raw = Buffer.concat(chunks).toString('utf8');
-    try {
-      body = raw ? JSON.parse(raw) : undefined;
-    } catch {
-      body = undefined;
+    const rawBuf = Buffer.concat(chunks);
+    if ((req.headers['content-type'] ?? '').includes('application/json')) {
+      const raw = rawBuf.toString('utf8');
+      try {
+        body = raw ? JSON.parse(raw) : undefined;
+      } catch {
+        body = undefined;
+      }
+    } else {
+      // Vercel hands any other content type to the function as a Buffer (the Try your file upload is octet-stream).
+      body = rawBuf.length ? rawBuf : undefined;
     }
   }
   Object.assign(req, { query, body, cookies: {} });
@@ -167,6 +173,39 @@ for (const p of ['/api/health', '/api/ready', '/api/usage', '/api/compare']) {
     } catch {
       problems.push('cleanup failed');
     }
+  }
+  const ok = problems.length === 0;
+  if (!ok) failed++;
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${p}${ok ? '' : ` -> ${problems.join('; ')}`}`);
+}
+
+// Try your file, in no-model mode: the page data loads, a wrong file type is refused before it counts as an
+// upload, an oversize file is refused, and a valid file is refused by the caps (set to 0 here) before any model
+// code runs. The isolation itself is covered by tests and by verify:sandbox.
+{
+  const p = 'try your file (page data, file rules, refusal under the caps)';
+  const problems = [];
+  const bid = `checkfunction${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  const send = async (name, bytes, mime = 'application/octet-stream') => {
+    const r = await fetch(`${base}/api/sandbox`, { method: 'POST', headers: { 'content-type': 'application/octet-stream', 'x-filename': encodeURIComponent(name), 'x-file-mime': mime, 'x-browser-id': bid }, body: bytes });
+    return { status: r.status, json: await r.json().catch(() => null) };
+  };
+  try {
+    const page = await (await fetch(`${base}/api/sandbox?browser_id=${bid}`)).json();
+    if (page?.result !== null || page?.uploads_left !== 3 || page?.max_mb !== 4) problems.push('page data is not 3 uploads, 4 MB, no result');
+    if (!String(page?.label ?? '').startsWith('Your file, read live by the same pipeline. Not added to the comparison.')) problems.push('label is missing');
+    const exe = await send('run.exe', Buffer.from('MZ'));
+    if (exe.status !== 400 || exe.json?.error !== 'bad_file') problems.push(`.exe returned ${exe.status}, expected 400 bad_file`);
+    const big = await send('big.txt', Buffer.alloc(4 * 1024 * 1024 + 1, 97), 'text/plain');
+    if (big.status !== 400 || !String(big.json?.message ?? '').includes('4 MB')) problems.push(`oversize returned ${big.status}, expected 400 naming 4 MB`);
+    const mismatch = await send('quote.pdf', Buffer.from('x'), 'text/plain');
+    if (mismatch.status !== 400) problems.push(`a .pdf declared as text returned ${mismatch.status}, expected 400`);
+    const ok = await send('reply.txt', Buffer.from('Carton Rs 28 each'), 'text/plain');
+    if (ok.status !== 429 || ok.json?.error !== 'capped') problems.push(`a valid file with the caps at 0 returned ${ok.status}, expected 429 capped`);
+    const after = await (await fetch(`${base}/api/sandbox?browser_id=${bid}`)).json();
+    if (after?.result !== null) problems.push('a refused upload left a result behind');
+  } catch (e) {
+    problems.push(`threw ${e?.name ?? 'Error'}`);
   }
   const ok = problems.length === 0;
   if (!ok) failed++;

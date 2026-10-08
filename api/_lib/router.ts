@@ -20,13 +20,14 @@ import ready from './routes/ready.js';
 import resetDemo from './routes/reset-demo.js';
 import rfx from './routes/rfx.js';
 import rfxDraft from './routes/rfx-draft.js';
+import sandbox from './routes/sandbox.js';
 import usage from './routes/usage.js';
 import vendor from './routes/vendor.js';
 
 type Handler = (req: VercelRequest, res: VercelResponse) => Promise<void>;
 
 const routes: Record<string, Handler> = {
-  analyst, assumptions, compare, copilot, decision, documents, evidence, export: exportRoute, extract, health, inbox, normalize, outbox, ready, review, 'reset-demo': resetDemo, rfx, 'rfx-draft': rfxDraft, usage, vendor,
+  analyst, assumptions, compare, copilot, decision, documents, evidence, export: exportRoute, extract, health, inbox, normalize, outbox, ready, review, 'reset-demo': resetDemo, rfx, 'rfx-draft': rfxDraft, sandbox, usage, vendor,
 };
 
 const known = (name: string | undefined): name is string => !!name && Object.prototype.hasOwnProperty.call(routes, name);

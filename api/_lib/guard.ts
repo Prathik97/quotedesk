@@ -18,6 +18,7 @@ export const CAPPED_LABEL = 'Showing stored results from an earlier live run';
 /** Stop admitting a new live request when less than one analyst turn at its cap is left. */
 export const ADMISSION_HEADROOM_INR = PER_TURN_CAP_INR;
 
+export const SANDBOX_PER_IP_HOURLY = 3;
 export const RESET_PER_IP_HOURLY = 3;
 export const RESET_GLOBAL_HOURLY = 20;
 
@@ -125,6 +126,33 @@ export async function admitModelCall(pool: pg.Pool, req: Parameters<typeof clien
           ? 'Live model calls are switched off for this demo right now.'
           : `You have used the ${e.PER_IP_HOURLY_CALLS} live model calls allowed per hour from one address. Try again later.`,
     };
+  }
+  return { ok: true, ip_hash: ipHash };
+}
+
+/** Uploads this address may still make this hour, counted in request_log (route 'sandbox'). Records nothing. */
+export async function sandboxUploadsLeft(pool: pg.Pool, req: Parameters<typeof clientIp>[0]): Promise<number> {
+  return Math.max(0, SANDBOX_PER_IP_HOURLY - (await admittedInLastHour(pool, 'sandbox', ipHashOf(req))));
+}
+
+/**
+ * Gate for Try your file: 3 uploads per address per hour (request_log, route 'sandbox'), then the same daily
+ * spend cap and session budget as every other model route. The 'model' hourly counter is a different limit
+ * and is not touched, but when live model calls are switched off (PER_IP_HOURLY_CALLS 0) this refuses too.
+ */
+export async function admitSandbox(pool: pg.Pool, req: Parameters<typeof clientIp>[0]): Promise<Admission> {
+  const e = env();
+  if (e.PER_IP_HOURLY_CALLS <= 0) return { ok: false, reason: 'ip_limit', message: 'Live model calls are switched off for this demo right now.' };
+  const summary = await usageSummary(pool);
+  if (summary.capped) {
+    log('warn', 'cap_reached', { route: 'sandbox', reason: 'daily_cap', calls_today: summary.calls_today });
+    return { ok: false, reason: 'daily_cap', message: summary.message ?? 'The live demo has reached its spend cap for today.' };
+  }
+  const ipHash = ipHashOf(req);
+  const ok = await withinHourlyLimit(pool, 'sandbox', ipHash, SANDBOX_PER_IP_HOURLY);
+  if (!ok) {
+    log('warn', 'ip_limit_reached', { route: 'sandbox', limit: SANDBOX_PER_IP_HOURLY });
+    return { ok: false, reason: 'ip_limit', message: `Try your file allows ${SANDBOX_PER_IP_HOURLY} uploads per hour from one address. Try again later.` };
   }
   return { ok: true, ip_hash: ipHash };
 }

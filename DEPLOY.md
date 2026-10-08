@@ -58,7 +58,7 @@ Mark the ones in the Sensitive column as Sensitive in the dashboard so they cann
 
 The deployed app uses the same Supabase project you already migrated and seeded. Before the first visit it must have:
 
-1. Migrations 0001 to 0010 applied: `npm run db:migrate`.
+1. Migrations 0001 to 0012 applied: `npm run db:migrate`. 0011 (co-pilot drafts, outbox, inbox reveals, and the five saved FY27 emails) and 0012 (Try your file results) only add tables and rows; they change nothing seeded. They must be applied before the Phase 6 code is deployed, or the new pages will show an error.
 2. The seed loaded: `npm run seed:db` (RFx, vendors, the files in the private `documents` bucket).
 3. The stored extraction results and analyst runs from development. They are rows in the database, so a new Supabase project would not have them and the cap fallback would have nothing to show. Use the existing project.
 
@@ -77,7 +77,7 @@ Open the app in a private window, then the Comparison page, the Evaluation page 
 
 ## 6. Reset demo from a script
 
-Reset demo clears corrections, assumption changes and chat sessions, and keeps extraction results and the saved analyst runs. It makes no model call.
+Reset demo clears corrections, assumption changes and chat sessions, and (Phase 6) every RFx draft, every issued draft email, inbox replay reveals and Try your file results. It keeps extraction results, the saved analyst runs and the five saved FY27 emails. It makes no model call.
 
 ```bash
 # Directly against the database, no HTTP and no limit (uses .env.local):
@@ -92,7 +92,7 @@ Without the token, the button and the endpoint allow 3 resets per hour per addre
 ## 7. Before every push
 
 ```bash
-npm run check:function    # Node 22. Builds, loads .build/handler.mjs in plain Node, calls health, ready, usage, compare, and POSTs /api/decision with the template note
+npm run check:function    # Node 22. Builds, loads .build/handler.mjs in plain Node, calls health, ready, usage, compare, POSTs /api/decision with the template note, runs a whole draft to issued RFx and back (outbox, pack PDF, inbox replay, co-pilot refusal) and the Try your file rules, all in no-model mode
 ```
 
 It reads `.env.local`, never prints a value, forces both spend caps to 0 for the child process, and makes no model call. Any route that does not return 200 fails the check and names the failing layer. The decision pack route is called in template mode and the check confirms the memo is a real PDF and the appendix a real xlsx.
@@ -104,6 +104,14 @@ It reads `.env.local`, never prints a value, forces both spend caps to 0 for the
 - The approval note is the only model call (about Rs 0.70, one call). It goes through the same gates as the analyst: the per IP hourly limit (shared counter) and the daily spend cap. When either refuses, or the call fails, the pack is still made with a labelled template note. `note_mode: "template"` never touches the model or the gates.
 - The prompt file is `prompts/note.v2.md`, already covered by `includeFiles`.
 - After a deploy: open the Decision page, press Create with the template note, and download both files. Then press Create decision pack once to see the live note (one model call).
+
+## 7b. Phase 6: co-pilot, outbox, inbox replay, Try your file
+
+No new environment variable. The new routes (`/api/copilot`, `/api/rfx-draft`, `/api/outbox`, `/api/sandbox`, and a changed `/api/inbox`) ship in the same single function. New prompt files `prompts/copilot.v2.md` and `prompts/rfx-email.v1.md` are covered by `includeFiles`.
+
+- **Model spend.** A co-pilot turn is about Rs 1 to 5 (first draft Rs 4 to 5), the covering email about Rs 0.20 (`MODEL_FAST`), and one Try your file read a few rupees. All go through the same daily cap and session budget. The co-pilot shares the per address hourly limit (`PER_IP_HOURLY_CALLS`) with the analyst. Try your file has its own limit of 3 uploads per address per hour in `request_log` and is switched off when `PER_IP_HOURLY_CALLS` is 0.
+- **Uploads.** Try your file posts the raw file (at most 4 MB) with `content-type: application/octet-stream`. The file is read in memory and never stored.
+- **After a deploy:** open RFx, send a brief to the co-pilot (one live turn), press Issue RFx (one cheap email draft) and open the Outbox; open Inbox and press Simulate vendor replies (no model call); open Try your file and upload one small file you provide (a live read). Use Reset demo afterwards.
 
 ## 8. Rehearse the production build on your machine
 

@@ -2,7 +2,7 @@
 //
 // Cleared:  buyer corrections and the overrides they wrote, buyer changes to FX and GST,
 //           review items a buyer dismissed or resolved (they reopen), and chat sessions.
-// Also cleared: co-pilot drafts, the emails they issued (the five saved FY27 emails stay) and inbox reveals.
+// Also cleared: co-pilot drafts, the emails they issued (the five saved FY27 emails stay), inbox reveals and Try your file results.
 // Kept:     everything extraction produced (documents, extractions, quote lines as read,
 //           answers, terms), the seeded RFx, usage_log (spend is real), and the saved analyst
 //           chats from development, which are what visitors see when the spend cap is reached.
@@ -26,6 +26,7 @@ export type ResetSummary = {
   drafts_cleared: number;
   outbox_cleared: number;
   inbox_reveals_cleared: number;
+  sandbox_cleared: number;
   cells_changed_by_recompute: number;
   ms: number;
 };
@@ -54,6 +55,7 @@ export async function resetDemo(pool: pg.Pool): Promise<ResetSummary> {
     const outbox = await c.query('delete from outbox_emails where not is_saved');
     const drafts = await c.query('delete from rfx_drafts');
     const reveals = await c.query('delete from inbox_reveals');
+    const sandbox = await c.query('delete from sandbox_results');
     // The hourly limits only need an hour of history.
     await c.query(`delete from request_log where created_at < now() - interval '2 days'`);
     await c.query('commit');
@@ -66,6 +68,7 @@ export async function resetDemo(pool: pg.Pool): Promise<ResetSummary> {
       drafts_cleared: drafts.rowCount ?? 0,
       outbox_cleared: outbox.rowCount ?? 0,
       inbox_reveals_cleared: reveals.rowCount ?? 0,
+      sandbox_cleared: sandbox.rowCount ?? 0,
     };
   } catch (e) {
     await c.query('rollback');

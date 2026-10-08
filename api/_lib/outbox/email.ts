@@ -72,7 +72,7 @@ export function checkEmail(d: EmailDraft, summaryJson: string): EmailCheck {
   const words = d.body.trim().split(/\s+/).filter(Boolean).length;
   if (words < 40 || words > 260) reasons.push(`The body has ${words} words, outside 40 to 260.`);
   if (!d.body.includes(VENDOR_PLACEHOLDER)) reasons.push('The body does not address the vendor.');
-  if (/[–—]/.test(`${d.subject} ${d.body}`)) reasons.push('It contains an em dash or en dash.');
+  if (/[\u2013\u2014]/.test(`${d.subject} ${d.body}`)) reasons.push('It contains an em dash or en dash.');
   if (/<[a-z/][^>]*>/i.test(d.body)) reasons.push('It contains markup.');
   const nums = checkNumbers(`${d.subject}\n${d.body}`, [summaryJson]);
   if (!nums.ok) reasons.push(`Some figures were not in the RFx: ${nums.unmatched.map((u) => u.text).join(', ')}.`);

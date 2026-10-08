@@ -1,4 +1,4 @@
-import { BarChart3, Database, FileText, Inbox as InboxIcon, MessageSquare, Scale, Send, ShieldCheck } from 'lucide-react';
+import { BarChart3, Database, FileText, FileUp, Inbox as InboxIcon, MessageSquare, Scale, Send, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { EvidenceDrawer } from '@/components/EvidenceDrawer';
 import { Btn } from '@/components/ui';
@@ -13,6 +13,7 @@ import { Eval } from '@/pages/Eval';
 import { Inbox } from '@/pages/Inbox';
 import { Outbox } from '@/pages/Outbox';
 import { Rfx } from '@/pages/Rfx';
+import { TryFile } from '@/pages/TryFile';
 
 const STAGES: { id: Page; label: string; icon: typeof FileText; soon?: boolean }[] = [
   { id: 'rfx', label: 'RFx', icon: FileText },
@@ -22,6 +23,7 @@ const STAGES: { id: Page; label: string; icon: typeof FileText; soon?: boolean }
   { id: 'analyst', label: 'Analyst', icon: MessageSquare },
   { id: 'decision', label: 'Decision', icon: Scale },
   { id: 'eval', label: 'Evaluation', icon: ShieldCheck },
+  { id: 'tryfile', label: 'Try your file', icon: FileUp },
 ];
 
 type Health = { ok: boolean; config: string; database: string };
@@ -77,6 +79,7 @@ function Shell() {
           {page === 'comparison' ? <Comparison /> : null}
           {page === 'analyst' ? <Analyst key={resetCount} /> : null}
           {page === 'eval' ? <Eval /> : null}
+          {page === 'tryfile' ? <TryFile key={resetCount} /> : null}
           {page === 'decision' ? <Decision /> : null}
         </main>
       </div>
