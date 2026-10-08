@@ -30,6 +30,9 @@ type Row = {
   old_status: string;
   vendor_key: string;
   unit_definitions: { term: string; means_quantity: number | null; means_unit: string | null; document_id?: string; evidence?: { quote?: string | null } | null }[] | null;
+  conditions: string[] | null;
+  rfx_text: string;
+  global_notes: { text: string; document_id?: string }[] | null;
 };
 
 export type RecomputeSummary = {
@@ -43,7 +46,7 @@ async function loadRows(pool: pg.Pool, vendorIds?: string[]): Promise<Row[]> {
   const r = await pool.query<Row>(
     `select q.id, q.vendor_id, q.source_document_id, q.quoted_price::float8 as price, q.quoted_uom_text as uom_text, q.quoted_currency as currency,
             q.price_basis, q.conversion, q.flags, q.source_type, q.evidence, q.match_confidence::float8 as match_confidence, q.overrides,
-            l.uom, l.last_year_rate_inr::float8 as ly, t.unit_definitions, l.code, l.annual_qty::float8 as annual_qty,
+            l.uom, l.last_year_rate_inr::float8 as ly, t.unit_definitions, t.global_notes, q.conditions, concat_ws(' ; ', l.description, l.spec) as rfx_text, l.code, l.annual_qty::float8 as annual_qty,
             q.normalized_price_inr::float8 as old_price, coalesce(q.conversion->>'base_status', q.status) as old_status, v.vendor_key
      from quote_lines q join rfx_lines l on l.id = q.rfx_line_id join vendors v on v.id = q.vendor_id left join vendor_terms t on t.vendor_id = q.vendor_id
      where ($1::uuid[] is null or q.vendor_id = any($1))`,
@@ -74,6 +77,10 @@ function toStored(row: Row): StoredLine {
     evidence_locator: row.evidence?.locator ?? null,
     sticky_flags: row.flags.filter((f) => STICKY_FLAGS.includes(f)),
     overrides: row.overrides ?? {},
+    conditions: row.conditions ?? [],
+    annual_qty: row.annual_qty,
+    rfx_text: row.rfx_text,
+    vendor_notes: (row.global_notes ?? []).filter((n) => !n.document_id || n.document_id === row.source_document_id).map((n) => n.text),
   };
 }
 

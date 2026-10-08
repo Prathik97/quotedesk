@@ -7,7 +7,7 @@ import { coversExactlyRemainder, VERIFIED_SCOPE_CONFIDENCE } from '../../../engi
 import { expandGroupStatements, type CertificateFacts, type ExtractedLine, type Extraction } from '../../../src/lib/schemas/extraction.js';
 import type { Prepared } from './prepare.js';
 
-export type RfxLineRow = { id: string; code: string; section: string; description: string; uom: BaseUom; annual_qty: number; last_year_rate_inr: number | null };
+export type RfxLineRow = { id: string; code: string; section: string; description: string; spec?: string | null; uom: BaseUom; annual_qty: number; last_year_rate_inr: number | null };
 export type QuestionRow = { id: string; code: string; text: string; is_knockout: boolean; pass_rule: unknown };
 export type DocRow = { id: string; vendor_id: string; filename: string; sha256: string };
 
@@ -108,6 +108,8 @@ export function deriveLines(prep: Prepared, x: Extraction, lines: RfxLineRow[], 
             read_confidence: l.read_confidence, match_confidence: l.match_confidence, source_type: prep.source_type,
             evidence_quote: l.evidence.quote ?? null, evidence_locator: l.evidence.locator ?? null,
             sticky_flags: sticky, overrides: {},
+            conditions: l.conditions, annual_qty: rfx.annual_qty, rfx_text: [rfx.description, rfx.spec].filter(Boolean).join(' ; '),
+            vendor_notes: x.document.global_notes,
           },
           a,
         )

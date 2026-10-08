@@ -228,7 +228,7 @@ describe('recomputeLine: buyer overrides', () => {
   });
 
   it('only interpretation keys can be accepted by the buyer', () => {
-    expect(INTERPRETATION_KEYS).toEqual(['pack_size', 'tax_basis_assumed_excl', 'last_year_inheritance']);
+    expect(INTERPRETATION_KEYS).toEqual(['pack_size', 'tax_basis_assumed_excl', 'last_year_inheritance', 'unit_length']);
   });
 });
 

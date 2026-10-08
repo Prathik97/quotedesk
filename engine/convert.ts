@@ -9,10 +9,11 @@ export type ParsedUnit =
   | { kind: 'tonne'; n: number }
   | { kind: 'sq m'; n: number }
   | { kind: 'roll'; n: number }
-  | { kind: 'pack'; term: string } // box, bundle, carton, pack: needs a definition
-  | { kind: 'unknown'; text: string };
+  | { kind: 'metre'; n: number } // a length: needs the RFx piece length to map to a piece
+  | { kind: 'pack'; term: string; n: number } // box, bundle, carton, pack: needs a definition
+  | { kind: 'unknown'; text: string; why?: string };
 
-const COUNT_WORDS = ['piece', 'pieces', 'pc', 'pcs', 'nos', 'no', 'no.', 'each', 'unit', 'units', 'ea', 'set', 'sets', 'plate', 'plates', 'pallet', 'pallets'];
+const COUNT_WORDS = ['piece', 'pieces', 'pc', 'pcs', 'nos', 'no', 'no.', 'each', 'unit', 'units', 'ea', 'nos.', 'pc.', 'pcs.', 'set', 'sets', 'plate', 'plates', 'pallet', 'pallets'];
 const PACK_WORDS = ['box', 'boxes', 'bundle', 'bundles', 'pack', 'packs', 'packet', 'packets', 'bale', 'bales', 'case', 'cases', 'carton', 'cartons', 'ctn'];
 
 const MARKER = /[*†‡#]+/;
@@ -34,27 +35,47 @@ function clean(text: string): string {
     .trim();
 }
 
-/** Reads unit text such as "per MT", "Sq.Mtr", "per 100", "per box*", "/kg", "each". */
+const COUNT_PHRASES: Record<string, number> = { hundred: 100, thousand: 1000, dozen: 12 };
+
+/**
+ * Reads unit text such as "per MT", "Sq.Mtr", "per 100", "per box*", "/kg", "each", "a roll", "per mtr".
+ *
+ * The count a price is quoted for ("per 100") can be written in the unit text, in per_n, or in both. It is
+ * derived exactly once: text and per_n that agree are one statement, a count in only one place is used as
+ * given, and two different counts are not guessed between.
+ */
 export function parseUnit(raw: string | null | undefined, perN = 1): ParsedUnit {
   if (!raw || !raw.trim()) return { kind: 'unknown', text: raw ?? '' };
-  let t = clean(raw);
-  let n = perN > 0 ? perN : 1;
-  // "per 100", "per 1000 pcs", "100 nos"
-  const lead = t.match(/^(\d[\d,]*)\s*(.*)$/);
+  let t = clean(raw).replace(/^(a|an|one|1)\s+(?=[a-z])/, '');
+  const stated = perN > 0 ? perN : 1;
+  let textN: number | null = null;
+  // "per 100", "per 1000 pcs", "100 nos", "per hundred", "per thousand pcs"
+  const lead = t.match(/^(\d[\d,]*(?:\.\d+)?)\s*(.*)$/);
   if (lead && lead[1]) {
     const k = Number(lead[1].replace(/,/g, ''));
     if (k > 0) {
-      n = n * k;
+      textN = k;
       t = (lead[2] ?? '').trim();
     }
+  } else {
+    const word = t.match(/^(hundred|thousand|dozen)\b\s*(.*)$/);
+    if (word && word[1]) {
+      textN = COUNT_PHRASES[word[1]] ?? null;
+      t = (word[2] ?? '').trim();
+    }
   }
+  if (textN != null && stated !== 1 && textN !== stated) {
+    return { kind: 'unknown', text: raw, why: `The unit text says per ${textN} but the quoted count is ${stated}, so the pack divisor is ambiguous.` };
+  }
+  const n = textN ?? stated;
   if (t === '') return { kind: 'count', n };
   if (/^(kg|kgs|kilo|kilos|kilogram|kilograms)$/.test(t)) return { kind: 'kg', n };
   if (/^(mt|t|ton|tons|tonne|tonnes|metric ton|metric tonne)$/.test(t)) return { kind: 'tonne', n };
   if (/^(sq\.?\s?m|sqm|sq\.?\s?mtr|sq\.?\s?mt|sq\.?\s?meter|sq\.?\s?metre|square met(er|re)|m2)$/.test(t)) return { kind: 'sq m', n };
   if (/^(roll|rolls|rl)$/.test(t)) return { kind: 'roll', n };
+  if (/^(m|mtr|mtrs|meter|meters|metre|metres|running m|running mtr|running meter|running metre|rm|rmt)$/.test(t)) return { kind: 'metre', n };
   if (COUNT_WORDS.includes(t)) return { kind: 'count', n };
-  if (PACK_WORDS.includes(t)) return { kind: 'pack', term: t };
+  if (PACK_WORDS.includes(t)) return { kind: 'pack', term: t, n };
   return { kind: 'unknown', text: raw };
 }
 
@@ -115,7 +136,27 @@ export type NormalizeInput = {
    * buyer's decision, not a system assumption.
    */
   pack_override?: { quantity: number; unit: string } | null;
+  /** Length of one RFx piece in mm when the RFx spec states it (see specLengthMm). Lets "per mtr" map to a piece. */
+  spec_length_mm?: number | null;
 };
+
+const LEN_TO_MM: Record<string, number> = { mm: 1, cm: 10, m: 1000, mtr: 1000, mtrs: 1000, metre: 1000, meter: 1000, metres: 1000, meters: 1000 };
+const LEN_UNIT = '(mm|cm|mtrs?|metres?|meters?|m)';
+
+/**
+ * The length of one piece when the RFx text states it outright ("1000 mm length", "length 1.2 m", "2 m long").
+ * Dimensions such as "50x50x4 mm" are not a length statement and give null: which side runs along the piece is not guessed.
+ */
+export function specLengthMm(...texts: (string | null | undefined)[]): number | null {
+  const t = texts.filter(Boolean).join(' ; ').toLowerCase();
+  const num = '(\\d+(?:\\.\\d+)?)';
+  const a = new RegExp(`${num}\\s*${LEN_UNIT}\\s*(?:length|long)\\b`).exec(t);
+  const b = new RegExp(`\\blength\\s*(?:of\\s*|:\\s*)?${num}\\s*${LEN_UNIT}\\b`).exec(t);
+  const m = a ?? b;
+  if (!m) return null;
+  const v = Number(m[1]) * (LEN_TO_MM[m[2] as string] ?? 0);
+  return v > 0 ? v : null;
+}
 
 export type NormalizeResult =
   | {
@@ -195,7 +236,19 @@ export function normalizePrice(input: NormalizeInput, a: Assumptions): Normalize
 
   switch (unit.kind) {
     case 'unknown':
-      return { ok: false, reason: 'unit_unknown', detail: `Cannot read the unit "${unit.text}".` };
+      return { ok: false, reason: 'unit_unknown', detail: unit.why ?? `Cannot read the unit "${unit.text}".` };
+    case 'metre': {
+      if (base !== 'piece') return { ok: false, reason: 'unit_incompatible', detail: `Quoted per metre but the RFx line is per ${base}.` };
+      const len = input.spec_length_mm;
+      if (!len || len <= 0) return { ok: false, reason: 'unit_unknown', detail: `Quoted per metre and the RFx spec does not state the length of one ${base}.` };
+      const per = unit.n === 1 ? '1 m' : `${unit.n} m`;
+      const factor = len / 1000 / unit.n;
+      v = v * factor;
+      steps.push({ op: 'multiply', factor, reason: `${per} equals 1 piece of ${len} mm (from the RFx spec)`, assumption_key: 'unit_length' });
+      keys.push('unit_length');
+      notes.push(`1 m equals 1 piece of ${len} mm (from the RFx spec).`);
+      break;
+    }
     case 'count':
       if (!COUNT_BASES.includes(base)) {
         return { ok: false, reason: 'unit_incompatible', detail: `Quoted per piece but the RFx line is per ${base}.` };
@@ -226,7 +279,7 @@ export function normalizePrice(input: NormalizeInput, a: Assumptions): Normalize
       if (!compatible || !def.means_quantity) {
         return { ok: false, reason: 'unit_incompatible', detail: `A ${unit.term} holds ${def.means_quantity} ${def.means_unit}, which does not match per ${base}.` };
       }
-      divide(def.means_quantity, `Vendor's own definition: 1 ${unit.term} = ${def.means_quantity} ${def.means_unit ?? 'units'}`, 'pack_size');
+      divide(def.means_quantity * unit.n, `Vendor's own definition: 1 ${unit.term} = ${def.means_quantity} ${def.means_unit ?? 'units'}${unit.n !== 1 ? `, quoted per ${unit.n} ${unit.term}` : ''}`, 'pack_size');
       keys.push('pack_size');
       notes.push(`Pack size taken from the vendor's note${def.quote ? `: "${def.quote}"` : ''}.`);
       return { ok: true, value_inr: v, steps, assumption_keys: keys, pack_size: def.means_quantity, pack_source: 'vendor', notes };

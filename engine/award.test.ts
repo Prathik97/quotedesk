@@ -309,3 +309,19 @@ describe('mergeScenario', () => {
     expect(mergeScenario(prev, { constraints: { vendor: null } }).constraints.vendor).toBeNull();
   });
 });
+
+describe('a conditional price is Assumed, so Confirmed only never uses it', () => {
+  // VB L1 is the cheapest at 7 but depends on a slab condition, so it is an Assumed cell.
+  const input: AwardInput = {
+    ...base,
+    cells: base.cells.map((c) => (c.vendor_id === 'id-VB' && c.line_id === 'L1' ? { ...c, price: 7, status: 'assumed' as CellStatus, conditions: ['Rs 7/kg for 40 MT and above, otherwise Rs 9/kg'] } : c)),
+  };
+  it('wins L1 when Assumed prices are allowed', () => {
+    const r = simulateAward(input, scn({ filters: { price_basis: 'confirmed_assumed' } }));
+    expect(r.allocation[0]?.vendor_key).toBe('VB');
+  });
+  it('does not win L1 under Confirmed only', () => {
+    const r = simulateAward(input, scn({ filters: { price_basis: 'confirmed' } }));
+    expect(r.allocation[0]?.vendor_key).toBe('VA');
+  });
+});

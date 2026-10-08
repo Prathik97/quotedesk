@@ -38,7 +38,7 @@ describe('parseUnit', () => {
     if ('n' in u) expect(u.n).toBe(n);
   });
   it('recognises pack units that need a definition', () => {
-    expect(parseUnit('per box*')).toEqual({ kind: 'pack', term: 'box' });
+    expect(parseUnit('per box*')).toEqual({ kind: 'pack', term: 'box', n: 1 });
   });
   it('reports unknown units instead of guessing', () => {
     expect(parseUnit('per lot').kind).toBe('unknown');

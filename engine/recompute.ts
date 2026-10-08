@@ -3,7 +3,8 @@
 // line's normalized price, flags and status are derived, for the extraction
 // pipeline and for every later change (FX, GST, corrections), so the two can
 // never disagree.
-import { normalizePrice } from './convert';
+import { normalizePrice, specLengthMm } from './convert';
+import { gradeMismatch, readTerms } from './terms';
 import type { Assumptions, BaseUom, ConversionStep, LineStatus, ReadConfidence, SourceType, UnitDefinition } from './types';
 import { assignStatus, lineFlags } from './verify';
 
@@ -38,6 +39,14 @@ export type StoredLine = {
   /** Flags decided at extraction that code cannot re-derive. */
   sticky_flags: string[];
   overrides: LineOverrides;
+  /** The vendor's own conditions on this line, as extracted. Read for conditional prices and minimum orders. */
+  conditions?: string[];
+  /** Annual quantity of the RFx line, in its base unit. Used to test a vendor minimum order. */
+  annual_qty?: number | null;
+  /** RFx description and spec text. Read for a stated piece length and a board grade. */
+  rfx_text?: string;
+  /** The vendor's quote level notes (global notes). Read for the base board grade the prices are for. */
+  vendor_notes?: string[];
 };
 
 export type LineResult = {
@@ -59,13 +68,21 @@ export type LineResult = {
 };
 
 /** Statements about how to read a document. A buyer who has seen the source can accept these. */
-export const INTERPRETATION_KEYS = ['pack_size', 'tax_basis_assumed_excl', 'last_year_inheritance'];
+export const INTERPRETATION_KEYS = ['pack_size', 'tax_basis_assumed_excl', 'last_year_inheritance', 'unit_length'];
 /** Numbers the vendor never gave. A buyer cannot verify these by looking at the source. */
 export const EXTERNAL_KEYS = ['usd_inr', 'gst_pct'];
 
 export const READ_SCORE: Record<ReadConfidence, number> = { high: 0.95, medium: 0.7, low: 0.4 };
 export const STICKY_FLAGS = ['from_hidden_sheet', 'unmatched', 'unknown_rfx_code'];
 const UNIT_PROBLEMS = ['unit_unknown', 'unit_incompatible', 'pack_size_unknown'];
+
+function unitProblemText(price: number | null, uomText: string | null, base: BaseUom, detail: string): string {
+  const unit = (uomText ?? '').trim();
+  const per = !unit ? 'unit not stated' : /^(per|\/)/i.test(unit) || /^an?\s/i.test(unit) ? unit : `per ${unit}`;
+  const head = price != null ? `Price read (${price.toFixed(2)} ${per}). ` : '';
+  const extra = detail && !detail.startsWith('Cannot read the unit') ? ` ${detail}` : '';
+  return `${head}The unit could not be mapped to ${base}.${extra}`;
+}
 
 export function recomputeLine(l: StoredLine, a: Assumptions): LineResult {
   const o = l.overrides;
@@ -86,6 +103,7 @@ export function recomputeLine(l: StoredLine, a: Assumptions): LineResult {
       last_year_rate_inr: l.last_year_rate_inr,
       unit_definitions: l.unit_definitions,
       pack_override: o.pack ?? null,
+      spec_length_mm: specLengthMm(l.rfx_text),
     },
     a,
   );
@@ -115,6 +133,34 @@ export function recomputeLine(l: StoredLine, a: Assumptions): LineResult {
   }
   if (edited) flags.push('buyer_edited');
 
+  // The vendor's own terms next to the price. These decide whether the cell may be Confirmed; none changes a price.
+  const flagText: Record<string, string> = {};
+  if (!inherits && price != null) {
+    const found = readTerms(l.conditions ?? [], { price, annual_qty: l.annual_qty ?? null, base_uom: l.base_uom });
+    if (found.conditional) {
+      const alt = found.conditional.alternate != null ? ` Alternate price stated: Rs ${found.conditional.alternate_label ?? found.conditional.alternate}.` : '';
+      flags.push('conditional_price');
+      flagText.conditional_price = `The price depends on a condition that has not been verified: "${found.conditional.text}".${alt}`;
+    }
+    if (found.minimum) {
+      if (found.minimum.met === true) notes = [...notes, found.minimum.detail];
+      else if (found.minimum.met === false) {
+        flags.push('minimum_above_annual');
+        flagText.minimum_above_annual = `${found.minimum.detail} The vendor's price may not apply.`;
+      } else {
+        flags.push('conditional_price');
+        flagText.conditional_price = `The price depends on a minimum order that could not be checked: "${found.minimum.text}". ${found.minimum.detail}`;
+        notes = [...notes, flagText.conditional_price];
+      }
+    }
+    const grade = gradeMismatch(l.rfx_text ?? '', l.vendor_notes ?? [], l.conditions ?? []);
+    if (grade) {
+      flags.push('board_grade_mismatch');
+      flagText.board_grade_mismatch = `The vendor's prices are for BF ${grade.vendor_grade}; this RFx line needs BF ${grade.rfx_grade}. Vendor's own text: "${grade.text}". No adjusted price is computed.`;
+    }
+  }
+  const unitDetail = unitKnown ? null : unitProblemText(price, o.uom_text ?? l.uom_text, l.base_uom, error?.detail ?? '');
+
   flags.push(
     ...lineFlags({
       // An edited value has no quote to be found in, and the buyer has seen it.
@@ -141,6 +187,10 @@ export function recomputeLine(l: StoredLine, a: Assumptions): LineResult {
     unit_known: unitKnown,
     assumption_keys: statusKeys,
     has_price: normalized != null,
+    price_read: price != null || inherits,
+    unit_detail: unitDetail,
+    price_vs_last_year: normalized != null && l.last_year_rate_inr ? { normalized, last_year: l.last_year_rate_inr } : null,
+    flag_text: flagText,
     buyer_verified: verified,
   });
 

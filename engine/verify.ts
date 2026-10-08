@@ -59,7 +59,37 @@ export type StatusInput = {
   has_price: boolean;
   /** The buyer checked this value against the source (accept, edit, or unit meaning). */
   buyer_verified?: boolean;
+  /** A price was read from the document, even if it could not be converted. Defaults to has_price. */
+  price_read?: boolean;
+  /** Said when the unit could not be mapped, for example "Price read (13.80 per mtr). The unit could not be mapped to piece." */
+  unit_detail?: string | null;
+  /** The converted and last year prices, used to say which way an implausible price is off. */
+  price_vs_last_year?: { normalized: number; last_year: number } | null;
+  /** Text for flags that carry their own explanation (conditional_price, minimum_above_annual, board_grade_mismatch). */
+  flag_text?: Record<string, string>;
 };
+
+/** How far a price may sit from last year's after a scale correction and still be called a likely scale slip. */
+const SCALE_HINT_TOLERANCE = 0.35;
+
+/**
+ * The message for an implausible converted price. It says which way the price is off and, when multiplying or
+ * dividing by 100 or 1000 would land within 35 percent of last year's rate, says so. It never applies the correction.
+ */
+export function unitSuspectMessage(normalized: number, lastYear: number): string {
+  const high = normalized > lastYear;
+  const fmt = (n: number) => (Math.abs(n) >= 100 ? n.toFixed(0) : n.toFixed(2));
+  const base = high
+    ? `Price is far above last year's rate (${fmt(normalized)} against ${fmt(lastYear)}). A pack or tonne price may not be converted.`
+    : `Price is far below last year's rate (${fmt(normalized)} against ${fmt(lastYear)}). It may have been converted twice, or the unit is wrong.`;
+  for (const k of [100, 1000]) {
+    const candidate = high ? normalized / k : normalized * k;
+    if (Math.abs(candidate / lastYear - 1) <= SCALE_HINT_TOLERANCE) {
+      return `${base} ${high ? 'Dividing' : 'Multiplying'} by ${k} would give ${fmt(candidate)}, within 35 percent of last year's rate. Not applied: check the source.`;
+    }
+  }
+  return base;
+}
 
 export type StatusDecision = { status: LineStatus; reasons: string[] };
 
@@ -69,11 +99,18 @@ export type StatusDecision = { status: LineStatus; reasons: string[] };
  */
 export function assignStatus(s: StatusInput): StatusDecision {
   const review: string[] = [];
-  if (!s.has_price) review.push('No readable price.');
-  if (!s.unit_known) review.push('Unit could not be mapped to the RFx unit.');
+  const priceRead = s.price_read ?? s.has_price;
+  if (!s.has_price && !(priceRead && !s.unit_known)) review.push('No readable price.');
+  if (!s.unit_known) review.push(s.unit_detail ?? 'Unit could not be mapped to the RFx unit.');
+  const ft = (k: string, fallback: string) => s.flag_text?.[k] ?? fallback;
+  // Judgements about the vendor's terms that a person must settle: they hold even after a buyer check of the number.
+  const terms: string[] = [];
+  if (s.flags.includes('board_grade_mismatch')) terms.push(ft('board_grade_mismatch', 'The vendor prices a different board grade than this RFx line. No adjusted price is computed.'));
+  if (s.flags.includes('minimum_above_annual')) terms.push(ft('minimum_above_annual', 'The vendor minimum order is above the annual quantity.'));
   if (s.buyer_verified) {
     // A person looked at the source: read, match and evidence doubts are settled.
     if (review.length > 0) return { status: 'needs_review', reasons: review };
+    if (terms.length > 0) return { status: 'assumed', reasons: [`Verified by the buyer, at the vendor's own unadjusted price. ${terms.join(' ')}`] };
     if (s.assumption_keys.length > 0) return { status: 'assumed', reasons: [`Verified by the buyer. Still depends on: ${s.assumption_keys.join(', ')}.`] };
     return { status: 'confirmed', reasons: ['Verified by the buyer against the source. No assumptions apply.'] };
   }
@@ -81,12 +118,16 @@ export function assignStatus(s: StatusInput): StatusDecision {
   if (s.read_confidence === 'medium' && s.source_type !== 'image') review.push('Medium read confidence on a text source.');
   if (s.match_confidence < MATCH_CONFIRM_THRESHOLD) review.push(`Match confidence ${s.match_confidence.toFixed(2)} is below ${MATCH_CONFIRM_THRESHOLD}.`);
   if (s.flags.includes('evidence_mismatch')) review.push('The number does not appear in the quoted evidence.');
-  if (s.flags.includes('unit_suspect')) review.push('Price is implausible for the unit, possibly a pack or tonne price not converted.');
+  if (s.flags.includes('unit_suspect')) {
+    review.push(s.price_vs_last_year ? unitSuspectMessage(s.price_vs_last_year.normalized, s.price_vs_last_year.last_year) : 'Price is implausible for the unit, possibly a pack or tonne price not converted.');
+  }
   if (s.flags.includes('from_hidden_sheet')) review.push('Value comes from a hidden sheet.');
+  review.push(...terms);
   if (review.length > 0) return { status: 'needs_review', reasons: review };
 
   const assumed: string[] = [];
   if (s.assumption_keys.length > 0) assumed.push(`Assumptions applied: ${s.assumption_keys.join(', ')}.`);
+  if (s.flags.includes('conditional_price')) assumed.push(ft('conditional_price', 'The price depends on a condition that has not been verified.'));
   if (s.source_type === 'image') assumed.push('Read from a photo. Photo values are never auto confirmed.');
   if (assumed.length > 0) return { status: 'assumed', reasons: assumed };
 
